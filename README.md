@@ -15,3 +15,11 @@ yarn test --watchAll # run tests
 * [Graphics](https://opcode-defined.quora.com/How-NES-Graphics-Work-Pattern-tables)
 * [PPU Registers](https://wiki.nesdev.com/w/index.php/PPU_registers#Summary)
 * [PPU Scrolling](https://wiki.nesdev.com/w/index.php/PPU_scrolling#The_common_case)
+
+## TODO
+
+* Nametable Mirroring: https://wiki.nesdev.com/w/index.php/Mirroring#Nametable_Mirroring
+* Scrolling behavior - tiles & lines: https://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
+* OAM DMA: https://wiki.nesdev.com/w/index.php/PPU_programmer_reference#OAM_DMA_.28.244014.29_.3E_write
+* Sprite zero hit: https://wiki.nesdev.com/w/index.php?title=PPU_OAM&redirect=no#Sprite_zero_hits
+* Sprite priority: https://wiki.nesdev.com/w/index.php/PPU_sprite_priority
