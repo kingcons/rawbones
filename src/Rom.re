@@ -1,9 +1,9 @@
 type mapper =
-  | NROM // All 32kB ROM + 8kB VROM games, SMB
-  | MMC1 // Final Fantasy, Metroid, Mega Man 2, Zelda
+  | NROM  // All 32kB ROM + 8kB VROM games, SMB
+  | MMC1  // Final Fantasy, Metroid, Mega Man 2, Zelda
   | UNROM // Castlevania, Contra, Metal Gear, Mega Man
   | CNROM // Cybernoid, Gradius, PipeDream, QBert
-  | MMC3 // Double Dragon II, SMB 3, SuperContra
+  | MMC3  // Double Dragon II, SMB 3, SuperContra
   | Unknown;
 
 type mirroring =
