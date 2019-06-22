@@ -7,7 +7,7 @@ describe("Render", () =>
       expect(Array.length(Render.color_palatte)) |> toEqual(192)
     );
 
-    test("bounds", () => {
+    test("has values between 0 and 252", () => {
       let bounds =
         Array.fold_left(
           ((min, max), n) => (n < min ? n : min, n > max ? n : max),

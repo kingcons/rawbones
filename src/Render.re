@@ -30,11 +30,6 @@ let color_palatte =
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
   |> Array.map(str => int_of_string("0x" ++ Util.default("00", str)));
 
-type result = {
-  nmi: bool,
-  next_scanline: int,
-};
-
 let render_tile = (_, _) => ();
 
 let render_tiles = ppu => {
@@ -43,17 +38,26 @@ let render_tiles = ppu => {
   };
 };
 
-let handle_scanline = (ppu: Ppu.t, index: int, ~on_nmi: unit => unit) => {
-  if (index < 240) {
+let draw_frame = _ => [||];
+
+let handle_scanline =
+    (
+      ppu: Ppu.t,
+      scanline: int,
+      ~on_nmi: unit => unit,
+      ~on_frame: frame => unit,
+    ) => {
+  if (scanline < 240) {
     render_tiles(ppu);
-  } else if (index == 241) {
+  } else if (scanline == 241) {
     Ppu.set_vblank(ppu.registers, true);
     if (Ppu.vblank_nmi(ppu.registers) == Ppu.NMIEnabled) {
       on_nmi();
     };
-  } else if (index == 261) {
+  } else if (scanline == 261) {
     Ppu.set_vblank(ppu.registers, false);
+    on_frame(draw_frame(ppu));
   };
 
-  (index + 1) mod scanlines_per_frame;
+  (scanline + 1) mod scanlines_per_frame;
 };

@@ -5,13 +5,9 @@ type t = {
   mutable scanline: int,
 };
 
-type frame = array(int);
-
-type config = {
-  log: string => unit,
-  on_step: t => unit,
-  on_frame: frame => unit,
-};
+type result('a) =
+  | Continue
+  | Done('a);
 
 let load = (rom: Rom.t): t => {
   let memory = Memory.build(rom);
@@ -24,23 +20,28 @@ let load = (rom: Rom.t): t => {
   {cpu, ppu, rom, scanline: 0};
 };
 
-let step = (nes: t) => {
+let step = (nes: t, ~on_frame: Render.frame => unit) => {
   Cpu.step(nes.cpu);
 
   if (nes.cpu.cycles > 112) {
     nes.scanline =
-      Render.handle_scanline(nes.ppu, nes.scanline, ~on_nmi=() =>
-        Cpu.nmi(nes.cpu)
+      Render.handle_scanline(
+        nes.ppu,
+        nes.scanline,
+        ~on_nmi=() => Cpu.nmi(nes.cpu),
+        ~on_frame,
       );
     nes.cpu.cycles = nes.cpu.cycles mod 113;
   };
 };
 
-let step_to = (nes: t, ~halt: unit => bool) => {
+let step_cc =
+    (nes: t, ~continue: unit => result('a), ~on_frame: Render.frame => unit) => {
   let rec go = () => {
-    step(nes);
-    if (!halt()) {
-      go();
+    step(nes, ~on_frame);
+    switch (continue()) {
+    | Continue => go()
+    | Done(result) => result
     };
   };
 
@@ -48,6 +49,12 @@ let step_to = (nes: t, ~halt: unit => bool) => {
 };
 
 let step_frame = (nes: t) => {
-  step_to(nes, ~halt=() => nes.scanline != 0);
-  step_to(nes, ~halt=() => nes.scanline == 0);
+  let frame = ref(None);
+  let continue = _ =>
+    switch (frame^) {
+    | Some(result) => Done(result)
+    | None => Continue
+    };
+
+  step_cc(nes, ~continue, ~on_frame=result => frame := Some(result));
 };
