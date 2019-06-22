@@ -206,3 +206,13 @@ let store = (ppu: t, address, value) =>
   | 7 => write_vram(ppu, value)
   | _ => ()
   };
+
+let next_tile = ppu => {
+  let new_coarse_x = ppu.registers.ppu_address + 1;
+  if (new_coarse_x land 0x1f == 0) {
+    ppu.registers.ppu_address = new_coarse_x land 0x1f;
+    ppu.registers.control = ppu.registers.control lxor 1;
+  } else {
+    ppu.registers.ppu_address = new_coarse_x;
+  };
+};

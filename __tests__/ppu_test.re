@@ -199,4 +199,25 @@ describe("PPU", () => {
       expect((nt1, nt2, nt3, nt4)) |> toEqual((0x42, 0x442, 0x42, 0x442));
     });
   });
+
+  describe("scrolling helpers", () => {
+    test("next tile increments coarse_x", () => {
+      let prev = regs.ppu_address land 0x1f;
+      Ppu.next_tile(ppu);
+      expect(regs.ppu_address land 0x1f) |> toEqual(prev + 1);
+    });
+
+    test("next tile wraps to the next nametable appropriately", () => {
+      regs.ppu_address = 0b0010011111;
+      regs.control = 0b10000000;
+      Ppu.next_tile(ppu);
+      let coarse_x = regs.ppu_address land 0x1f;
+      let nt_index = regs.control land 0x3;
+      expect((coarse_x, nt_index)) |> toEqual((0, 1));
+    });
+
+    test("next scanline", () =>
+      expect(true) |> toBe(true)
+    );
+  });
 });
