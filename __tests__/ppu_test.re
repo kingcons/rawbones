@@ -173,4 +173,30 @@ describe("PPU", () => {
       expect(Ppu.read_vram(ppu, 0x3f10)) |> toEqual(19);
     });
   });
+
+  describe("nametable mirroring", () => {
+    let ppu =
+      Ppu.build(
+        Mapper.for_rom(nestest),
+        ~name_table=Array.init(0x800, i => i),
+      );
+
+    test("horizontal mirroring", () => {
+      (ppu.pattern_table)#set_mirroring(Rom.Horizontal);
+      let nt1 = Ppu.read_vram(ppu, 0x2042);
+      let nt2 = Ppu.read_vram(ppu, 0x2442);
+      let nt3 = Ppu.read_vram(ppu, 0x2842);
+      let nt4 = Ppu.read_vram(ppu, 0x2c42);
+      expect((nt1, nt2, nt3, nt4)) |> toEqual((0x42, 0x42, 0x442, 0x442));
+    });
+
+    test("vertical mirroring", () => {
+      (ppu.pattern_table)#set_mirroring(Rom.Vertical);
+      let nt1 = Ppu.read_vram(ppu, 0x2042);
+      let nt2 = Ppu.read_vram(ppu, 0x2442);
+      let nt3 = Ppu.read_vram(ppu, 0x2842);
+      let nt4 = Ppu.read_vram(ppu, 0x2c42);
+      expect((nt1, nt2, nt3, nt4)) |> toEqual((0x42, 0x442, 0x42, 0x442));
+    });
+  });
 });
