@@ -120,73 +120,6 @@ let write_oam = (ppu: t, value) => {
   ppu.registers.oam_address = (oam_address + 1) land 0xff;
 };
 
-/*
-   See: https://wiki.nesdev.com/w/index.php/PPU_scrolling#Summary
-
-   The PPU has a single 15 bit address register, `v`, used for all reads and writes to VRAM.
-   However, since the NES only has an 8-bit data bus, all modifications to the address
-   register must be done one byte at a time. As a consequence, a buffer is used to modify `v`.
-
-   The 15-bit buffer register, `t`, must receive two writes before forming a completed address.
-   Two different interfaces are exposed for the comfort of the application programmer:
-
-   1. The PPUSTATUS interface at $2005 for setting the scroll position of the next frame.
-     * Each byte it receives specifies either the coarse x and fine x or coarse y and fine y coordinates.
-     * It can be written to at any point during vblank and will copy `t` to `v` just before rendering.
-   2. The PPUADDR interface at $2006 for updating the address before using PPUDATA to read/write VRAM.
-     * Each byte it receives is either the low byte or high byte for the buffer.
-     * It immediately copies `t` to `v` after the second write.
-
-   The current value of the buffer is copied to the address register during the last vblank scanline.
-   During rendering, the address register is updated by the PPU to reflect the current memory access.
-
-   Since there are not actually separate registers for scrolling information,
-   and either `ppu_address` or the `buffer` could be viewed as the source of scrolling info,
-   we have written a module below which accepts one of these registers and interprets the bitfield
-   as described in the above documentation. It is _possible_ that we could dispense with the existence
-   of the buffer entirely and let the programmer directly write to the address register if we are
-   confident that no applications would try to interleave writes to PPUSCROLL and PPUADDR.
-   I struggle to imagine an observable scenario where the two would be out of sync otherwise.
- */
-
-module Scroll = {
-  type t = {
-    mutable nt_index: int,
-    mutable coarse_x: int,
-    mutable coarse_y: int,
-    mutable fine_x: int,
-    mutable fine_y: int,
-  };
-
-  let from_registers = (base, control, fine_x): t => {
-    nt_index: control land 0x3,
-    coarse_x: base land 0x1f,
-    coarse_y: base lsr 5 land 0x1f,
-    fine_x,
-    fine_y: base lsr 12,
-  };
-
-  let next_tile = scroll =>
-    if (scroll.coarse_x == 31) {
-      scroll.coarse_x = 0;
-      scroll.nt_index = scroll.nt_index lxor 1;
-    } else {
-      scroll.coarse_x = scroll.coarse_x + 1;
-    };
-
-  let next_scanline = scroll =>
-    switch (scroll.fine_y == 7, scroll.coarse_y == 29) {
-    | (true, true) =>
-      scroll.fine_y = 0;
-      scroll.coarse_y = 0;
-      scroll.nt_index = scroll.nt_index lxor 2;
-    | (true, false) =>
-      scroll.fine_y = 0;
-      scroll.coarse_y = scroll.coarse_y + 1;
-    | (false, _) => scroll.fine_y = scroll.fine_y + 1
-    };
-};
-
 let write_scroll = (ppu: t, value) => {
   let {registers as regs} = ppu;
   if (regs.write_latch) {
@@ -227,27 +160,69 @@ let store = (ppu: t, address, value) =>
   | _ => ()
   };
 
-let next_tile = ppu => {
-  let coarse_x_overflow = ppu.registers.ppu_address land 0x1f == 0x1f;
-  if (coarse_x_overflow) {
-    ppu.registers.ppu_address = ppu.registers.ppu_address land lnot(0x1f);
-    ppu.registers.control = ppu.registers.control lxor 1;
-  } else {
-    ppu.registers.ppu_address = ppu.registers.ppu_address + 1;
-  };
-};
+/*
+   See: https://wiki.nesdev.com/w/index.php/PPU_scrolling#Summary
 
-let next_scanline = ppu => {
-  let fine_y_overflow = ppu.registers.ppu_address land 0x7000 == 0x7000;
-  let coarse_y_overflow = ppu.registers.ppu_address land 0x3a0 == 0x3a0;
-  switch (fine_y_overflow, coarse_y_overflow) {
-  | (true, true) =>
-    ppu.registers.ppu_address = ppu.registers.ppu_address land lnot(0x73a0);
-    ppu.registers.control = ppu.registers.control lxor 2;
-  | (true, false) =>
-    ppu.registers.ppu_address =
-      ppu.registers.ppu_address land lnot(0x7000) + 0x20
-  | (false, _) =>
-    ppu.registers.ppu_address = ppu.registers.ppu_address + 0x1000
+   The PPU has a single 15 bit address register, `v`, used for all reads and writes to VRAM.
+   However, since the NES only has an 8-bit data bus, all modifications to the address
+   register must be done one byte at a time. As a consequence, a buffer is used to modify `v`.
+
+   The 15-bit buffer register, `t`, must receive two writes before forming a completed address.
+   Two different interfaces are exposed for the comfort of the application programmer:
+
+   1. The PPUSTATUS interface at $2005 for setting the scroll position of the next frame.
+     * Each byte it receives specifies either the coarse x and fine x or coarse y and fine y coordinates.
+     * It can be written to at any point during vblank and will copy `t` to `v` just before rendering.
+   2. The PPUADDR interface at $2006 for updating the address before using PPUDATA to read/write VRAM.
+     * Each byte it receives is either the low byte or high byte for the buffer.
+     * It immediately copies `t` to `v` after the second write.
+
+   The current value of the buffer is copied to the address register during the last vblank scanline.
+   During rendering, the address register is updated by the PPU to reflect the current memory access.
+
+   Since there are not actually separate registers for scrolling information,
+   and either `ppu_address` or the `buffer` could be viewed as the source of scrolling info,
+   we have written a module below which accepts one of these registers and interprets the bitfield
+   as described in the above documentation. It is _possible_ that we could dispense with the existence
+   of the buffer entirely and let the programmer directly write to the address register if we are
+   confident that no applications would try to interleave writes to PPUSCROLL and PPUADDR.
+   I struggle to imagine an observable scenario where the two would be out of sync otherwise.
+ */
+
+module ScrollInfo = {
+  type t = {
+    mutable nt_index: int,
+    mutable coarse_x: int,
+    mutable coarse_y: int,
+    mutable fine_x: int,
+    mutable fine_y: int,
   };
+
+  let from_registers = (base, control, fine_x): t => {
+    nt_index: control land 0x3,
+    coarse_x: base land 0x1f,
+    coarse_y: base lsr 5 land 0x1f,
+    fine_x,
+    fine_y: base lsr 12,
+  };
+
+  let next_tile = scroll =>
+    if (scroll.coarse_x == 31) {
+      scroll.coarse_x = 0;
+      scroll.nt_index = scroll.nt_index lxor 1;
+    } else {
+      scroll.coarse_x = scroll.coarse_x + 1;
+    };
+
+  let next_scanline = scroll =>
+    switch (scroll.fine_y == 7, scroll.coarse_y == 29) {
+    | (true, true) =>
+      scroll.fine_y = 0;
+      scroll.coarse_y = 0;
+      scroll.nt_index = scroll.nt_index lxor 2;
+    | (true, false) =>
+      scroll.fine_y = 0;
+      scroll.coarse_y = scroll.coarse_y + 1;
+    | (false, _) => scroll.fine_y = scroll.fine_y + 1
+    };
 };
