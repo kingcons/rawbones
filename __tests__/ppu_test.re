@@ -216,8 +216,23 @@ describe("PPU", () => {
       expect((coarse_x, nt_index)) |> toEqual((0, 1));
     });
 
-    test("next scanline", () =>
-      expect(true) |> toBe(true)
-    );
+    test("next scanline increments fine_y", () => {
+      regs.ppu_address = 0b010000000000000;
+      Ppu.next_scanline(ppu);
+      expect(regs.ppu_address) |> toEqual(0b011000000000000);
+    });
+
+    test("next scanline wraps to increment coarse_y appropriately", () => {
+      regs.ppu_address = 0b111001110000000;
+      Ppu.next_scanline(ppu);
+      expect(regs.ppu_address) |> toEqual(0b000001110100000);
+    });
+
+    test("next scanline wraps to the next nametable appropriately", () => {
+      regs.ppu_address = 0b111001110100000;
+      regs.control = 0b10000000;
+      Ppu.next_scanline(ppu);
+      expect((regs.ppu_address, regs.control)) |> toEqual((0, 0b10000010));
+    });
   });
 });

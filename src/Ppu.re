@@ -61,7 +61,7 @@ let show_sprites = mask_helper(4);
 
 let nt_mirror = (ppu, address) => {
   let mirroring = (ppu.pattern_table)#mirroring;
-  // When set, bit 11 indicates we're reading from nametables 3 and 4, i.e. 2800 and 2C00.
+  // Bit 11 indicates we're reading from nametables 3 and 4, i.e. 2800 and 2C00.
   switch (mirroring, Util.read_bit(address, 11)) {
   | (Rom.Horizontal, false) => address land 0x3ff
   | (Rom.Horizontal, true) => 0x400 + address land 0x3ff
@@ -208,11 +208,26 @@ let store = (ppu: t, address, value) =>
   };
 
 let next_tile = ppu => {
-  let new_coarse_x = ppu.registers.ppu_address + 1;
-  if (new_coarse_x land 0x1f == 0) {
-    ppu.registers.ppu_address = new_coarse_x land 0x1f;
+  let coarse_x_overflow = ppu.registers.ppu_address land 0x1f == 0x1f;
+  if (coarse_x_overflow) {
+    ppu.registers.ppu_address = ppu.registers.ppu_address land lnot(0x1f);
     ppu.registers.control = ppu.registers.control lxor 1;
   } else {
-    ppu.registers.ppu_address = new_coarse_x;
+    ppu.registers.ppu_address = ppu.registers.ppu_address + 1;
+  };
+};
+
+let next_scanline = ppu => {
+  let fine_y_overflow = ppu.registers.ppu_address land 0x7000 == 0x7000;
+  let coarse_y_overflow = ppu.registers.ppu_address land 0x3a0 == 0x3a0;
+  switch (fine_y_overflow, coarse_y_overflow) {
+  | (true, true) =>
+    ppu.registers.ppu_address = ppu.registers.ppu_address land lnot(0x73a0);
+    ppu.registers.control = ppu.registers.control lxor 2;
+  | (true, false) =>
+    ppu.registers.ppu_address =
+      ppu.registers.ppu_address land lnot(0x7000) + 0x20
+  | (false, _) =>
+    ppu.registers.ppu_address = ppu.registers.ppu_address + 0x1000
   };
 };
