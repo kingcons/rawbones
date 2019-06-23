@@ -170,9 +170,10 @@ let store = (ppu: t, address, value) =>
    The 15-bit buffer register, `t`, must receive two writes before forming a completed address.
    Two different interfaces are exposed for the comfort of the application programmer:
 
-   1. The PPUSTATUS interface at $2005 for setting the scroll position of the next frame.
+   1. The PPUSCROLL interface at $2005 for setting the scroll position of the next frame.
      * Each byte it receives specifies either the coarse x and fine x or coarse y and fine y coordinates.
      * It can be written to at any point during vblank and will copy `t` to `v` just before rendering.
+     * It can also be written to during hblank for mid-frame raster effects.
    2. The PPUADDR interface at $2006 for updating the address before using PPUDATA to read/write VRAM.
      * Each byte it receives is either the low byte or high byte for the buffer.
      * It immediately copies `t` to `v` after the second write.
