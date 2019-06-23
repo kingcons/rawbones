@@ -151,11 +151,11 @@ let write_oam = (ppu: t, value) => {
 
 module Scroll = {
   type t = {
-    nt_index: int,
-    coarse_x: int,
-    coarse_y: int,
-    fine_x: int,
-    fine_y: int,
+    mutable nt_index: int,
+    mutable coarse_x: int,
+    mutable coarse_y: int,
+    mutable fine_x: int,
+    mutable fine_y: int,
   };
 
   let from_registers = (base, control, fine_x): t => {
@@ -165,6 +165,26 @@ module Scroll = {
     fine_x,
     fine_y: base lsr 12,
   };
+
+  let next_tile = scroll =>
+    if (scroll.coarse_x == 31) {
+      scroll.coarse_x = 0;
+      scroll.nt_index = scroll.nt_index lxor 1;
+    } else {
+      scroll.coarse_x = scroll.coarse_x + 1;
+    };
+
+  let next_scanline = scroll =>
+    switch (scroll.fine_y == 7, scroll.coarse_y == 29) {
+    | (true, true) =>
+      scroll.fine_y = 0;
+      scroll.coarse_y = 0;
+      scroll.nt_index = scroll.nt_index lxor 2;
+    | (true, false) =>
+      scroll.fine_y = 0;
+      scroll.coarse_y = scroll.coarse_y + 1;
+    | (false, _) => scroll.fine_y = scroll.fine_y + 1
+    };
 };
 
 let write_scroll = (ppu: t, value) => {
