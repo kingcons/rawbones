@@ -180,14 +180,6 @@ let store = (ppu: t, address, value) =>
 
    The current value of the buffer is copied to the address register during the last vblank scanline.
    During rendering, the address register is updated by the PPU to reflect the current memory access.
-
-   Since there are not actually separate registers for scrolling information,
-   and either `ppu_address` or the `buffer` could be viewed as the source of scrolling info,
-   we have written a module below which accepts one of these registers and interprets the bitfield
-   as described in the above documentation. It is _possible_ that we could dispense with the existence
-   of the buffer entirely and let the programmer directly write to the address register if we are
-   confident that no applications would try to interleave writes to PPUSCROLL and PPUADDR.
-   I struggle to imagine an observable scenario where the two would be out of sync otherwise.
  */
 
 module ScrollInfo = {
