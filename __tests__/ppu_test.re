@@ -128,17 +128,8 @@ describe("PPU", () => {
       // Second byte.
       Ppu.store(ppu, 0x2005, 0b11000100);
       let latch2 = regs.write_latch;
-      let scroll =
-        Ppu.Scroll.from_registers(regs.buffer, regs.control, regs.fine_x);
-      expect((
-        latch1,
-        latch2,
-        scroll.coarse_x,
-        scroll.fine_x,
-        scroll.coarse_y,
-        scroll.fine_y,
-      ))
-      |> toEqual((true, false, 0b00111, 0b011, 0b11000, 0b100));
+      expect((latch1, latch2, regs.buffer, regs.control, regs.fine_x))
+      |> toEqual((true, false, 0b100001100000111, 0b10001010, 0b011));
     });
 
     test("storing to PPUADDR", () => {
@@ -197,6 +188,87 @@ describe("PPU", () => {
       let nt3 = Ppu.read_vram(ppu, 0x2842);
       let nt4 = Ppu.read_vram(ppu, 0x2c42);
       expect((nt1, nt2, nt3, nt4)) |> toEqual((0x42, 0x442, 0x42, 0x442));
+    });
+  });
+
+  describe("scrolling", () => {
+    test("we create ScrollInfo from registers correctly", () => {
+      let address = 0b010001111001111;
+      let control = 0b10000001;
+      let scroll = Ppu.ScrollInfo.from_registers(address, control, 5);
+      let result: Ppu.ScrollInfo.t = {
+        nt_index: 0b01,
+        coarse_x: 0b01111,
+        coarse_y: 0b11110,
+        fine_x: 5,
+        fine_y: 0b010,
+      };
+      expect(scroll) |> toEqual(result);
+    });
+
+    test("next_tile advances the coarse_x position", () => {
+      let scroll = Ppu.ScrollInfo.from_registers(0b0000000011110, 0, 0);
+      let result: Ppu.ScrollInfo.t = {
+        nt_index: 0b00,
+        coarse_x: 0b11111,
+        coarse_y: 0b00000,
+        fine_x: 0,
+        fine_y: 0b000,
+      };
+      Ppu.ScrollInfo.next_tile(scroll);
+      expect(scroll) |> toEqual(result);
+    });
+
+    test("next_tile wraps to the next horizontal nametable", () => {
+      let scroll = Ppu.ScrollInfo.from_registers(0b0000000011111, 0, 0);
+      let result: Ppu.ScrollInfo.t = {
+        nt_index: 0b01,
+        coarse_x: 0b00000,
+        coarse_y: 0b00000,
+        fine_x: 0,
+        fine_y: 0b000,
+      };
+      Ppu.ScrollInfo.next_tile(scroll);
+      expect(scroll) |> toEqual(result);
+    });
+
+    test("next_scanline bumps the fine_y position", () => {
+      let scroll = Ppu.ScrollInfo.from_registers(0b110000000000000, 0, 0);
+      let result: Ppu.ScrollInfo.t = {
+        nt_index: 0b00,
+        coarse_x: 0b00000,
+        coarse_y: 0b00000,
+        fine_x: 0,
+        fine_y: 0b111,
+      };
+      Ppu.ScrollInfo.next_scanline(scroll);
+      expect(scroll) |> toEqual(result);
+    });
+
+    test("next_scanline wraps fine_y to coarse_y appropriately", () => {
+      let scroll = Ppu.ScrollInfo.from_registers(0b111000000000000, 0, 0);
+      let result: Ppu.ScrollInfo.t = {
+        nt_index: 0b00,
+        coarse_x: 0b00000,
+        coarse_y: 0b00001,
+        fine_x: 0,
+        fine_y: 0b000,
+      };
+      Ppu.ScrollInfo.next_scanline(scroll);
+      expect(scroll) |> toEqual(result);
+    });
+
+    test("next_scanline wraps to the next vertical nametable", () => {
+      let scroll = Ppu.ScrollInfo.from_registers(0b111001110100000, 1, 0);
+      let result: Ppu.ScrollInfo.t = {
+        nt_index: 0b11,
+        coarse_x: 0b00000,
+        coarse_y: 0b00000,
+        fine_x: 0,
+        fine_y: 0b000,
+      };
+      Ppu.ScrollInfo.next_scanline(scroll);
+      expect(scroll) |> toEqual(result);
     });
   });
 });

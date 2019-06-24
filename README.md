@@ -18,7 +18,6 @@ yarn test --watchAll # run tests
 
 ## TODO
 
-* Scrolling behavior - tiles & lines: https://wiki.nesdev.com/w/index.php/PPU_scrolling#Wrapping_around
 * OAM DMA: https://wiki.nesdev.com/w/index.php/PPU_programmer_reference#OAM_DMA_.28.244014.29_.3E_write
 * Sprite zero hit: https://wiki.nesdev.com/w/index.php?title=PPU_OAM&redirect=no#Sprite_zero_hits
 * Sprite priority: https://wiki.nesdev.com/w/index.php/PPU_sprite_priority
