@@ -30,34 +30,43 @@ let color_palatte =
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
   |> Array.map(str => int_of_string("0x" ++ Util.default("00", str)));
 
-let render_tile = (_, _) => ();
-
-let render_tiles = ppu => {
-  for (i in 0 to 31) {
-    render_tile(ppu, i);
-  };
+type context = {
+  mutable scanline: int,
+  mutable frame,
 };
 
-let draw_frame = _ => [||];
+let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
+  let context = {scanline: 0, frame: Array.make(width * height * 3, 0)};
 
-let handle_scanline =
-    (
-      ppu: Ppu.t,
-      scanline: int,
-      ~on_nmi: unit => unit,
-      ~on_frame: frame => unit,
-    ) => {
-  if (scanline < 240) {
-    render_tiles(ppu);
-  } else if (scanline == 241) {
-    Ppu.set_vblank(ppu.registers, true);
-    if (Ppu.vblank_nmi(ppu.registers) == Ppu.NMIEnabled) {
-      on_nmi();
-    };
-  } else if (scanline == 261) {
-    Ppu.set_vblank(ppu.registers, false);
-    on_frame(draw_frame(ppu));
+  let nt_byte = tile => {
+    Ppu.read_vram(ppu, 0x2000 + 32 * context.scanline + tile);
   };
 
-  (scanline + 1) mod scanlines_per_frame;
+  let at_byte = _ => {
+    Ppu.read_vram(ppu, 0x3f00 + context.scanline);
+  };
+
+  let render_tile = tile => ();
+
+  let render_tiles = _ => {
+    for (tile in 0 to 31) {
+      render_tile(tile);
+    };
+  };
+
+  (~on_frame: frame => unit) => {
+    if (context.scanline < 240) {
+      render_tiles();
+    } else if (context.scanline == 241) {
+      Ppu.set_vblank(ppu.registers, true);
+      if (Ppu.vblank_nmi(ppu.registers) == Ppu.NMIEnabled) {
+        on_nmi();
+      };
+    } else if (context.scanline == 261) {
+      Ppu.set_vblank(ppu.registers, false);
+      on_frame(context.frame);
+    };
+
+    context.scanline = (context.scanline + 1) mod scanlines_per_frame;
+  };
 };

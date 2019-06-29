@@ -17,7 +17,7 @@ describe("NES", () => {
     test("produces a frame", ()
       // TODO: actually render
       =>
-        expect(frame) |> toEqual([||])
+        expect(frame[0]) |> toEqual(0)
       );
 
     test("has updated the nametable", () =>

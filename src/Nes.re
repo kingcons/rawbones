@@ -2,7 +2,7 @@ type t = {
   cpu: Cpu.t,
   ppu: Ppu.t,
   rom: Rom.t,
-  mutable scanline: int,
+  render: (~on_frame: Render.frame => unit) => unit,
 };
 
 type result('a) =
@@ -15,22 +15,17 @@ let load = (rom: Rom.t): t => {
   let cpu = Cpu.build(memory);
   Cpu.reset(cpu);
 
-  let ppu = Memory.ppu(memory);
+  let ppu = memory.ppu;
+  let render = Render.make(ppu, ~on_nmi=() => Cpu.nmi(cpu));
 
-  {cpu, ppu, rom, scanline: 0};
+  {cpu, ppu, rom, render};
 };
 
 let step = (nes: t, ~on_frame: Render.frame => unit) => {
   Cpu.step(nes.cpu);
 
-  if (nes.cpu.cycles > 112) {
-    nes.scanline =
-      Render.handle_scanline(
-        nes.ppu,
-        nes.scanline,
-        ~on_nmi=() => Cpu.nmi(nes.cpu),
-        ~on_frame,
-      );
+  if (nes.cpu.cycles >= 113) {
+    nes.render(~on_frame);
     nes.cpu.cycles = nes.cpu.cycles mod 113;
   };
 };

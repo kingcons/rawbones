@@ -4,7 +4,7 @@
   "scripts": {
     "build": "bsb -make-world",
     "clean": "bsb -clean-world",
-    "rom": "node bin/rom.js",
+    "rom": "node bin/run.bs.js",
     "start": "bsb -make-world -w",
     "test": "yarn run jest"
   },
