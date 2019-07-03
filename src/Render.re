@@ -33,38 +33,87 @@ let color_palatte =
 type context = {
   mutable scanline: int,
   mutable frame,
+  mutable scroll: Ppu.ScrollInfo.t,
+};
+
+let draw = (ppu: Ppu.t, tiles: Pattern.Table.t): frame => {
+  let frame = Array.make(width * height * 4, 0);
+  let offset = ref(0);
+
+  for (x in 0 to 31) {
+    for (y in 0 to 29) {
+      let tile = tiles[x];
+
+      for (i in 0 to 7) {
+        for (j in 0 to 7) {
+          let tileValue = tile[i][j];
+
+          frame[offset^ + 3] = 255;
+
+          switch (tileValue) {
+          | 3 => frame[offset^] = 255
+          | 2 => frame[offset^ + 1] = 255
+          | 1 => frame[offset^ + 2] = 255
+          | _ => ()
+          };
+
+          offset := offset^ + 4;
+        };
+      };
+    };
+  };
+
+  frame;
 };
 
 let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
-  let context = {scanline: 0, frame: Array.make(width * height * 3, 0)};
-
-  let nt_byte = tile => {
-    Ppu.read_vram(ppu, 0x2000 + 32 * context.scanline + tile);
+  let context = {
+    scanline: 0,
+    frame: Array.make(width * height * 3, 0),
+    scroll: Ppu.scroll_info(ppu),
   };
 
-  let at_byte = _ => {
-    Ppu.read_vram(ppu, 0x3f00 + context.scanline);
+  let render_tile = () => {
+    let x = context.scroll.coarse_x;
+    let y = context.scroll.coarse_y;
+    let nt = Ppu.read_vram(ppu, 0x2000 + 32 * y + x);
+    // let at = Ppu.read_vram(ppu, 0x3f00 + context.scanline);
+    Ppu.ScrollInfo.next_tile(context.scroll);
   };
 
-  let render_tile = tile => ();
-
-  let render_tiles = _ => {
-    for (tile in 0 to 31) {
-      render_tile(tile);
+  let render_scanline = () => {
+    for (_ in 0 to 31) {
+      render_tile();
     };
+    Ppu.ScrollInfo.next_scanline(context.scroll);
+  };
+
+  let start_vblank = () => {
+    Ppu.set_vblank(ppu.registers, true);
+    if (Ppu.vblank_nmi(ppu.registers) == Ppu.NMIEnabled) {
+      on_nmi();
+    };
+  };
+
+  let finish_vblank = () => {
+    Ppu.set_vblank(ppu.registers, false);
+    context.scroll = {
+      nt_index: 0,
+      coarse_x: 0,
+      coarse_y: 0,
+      fine_x: 0,
+      fine_y: 0,
+    };
+    context.frame;
   };
 
   (~on_frame: frame => unit) => {
     if (context.scanline < 240) {
-      render_tiles();
+      render_scanline();
     } else if (context.scanline == 241) {
-      Ppu.set_vblank(ppu.registers, true);
-      if (Ppu.vblank_nmi(ppu.registers) == Ppu.NMIEnabled) {
-        on_nmi();
-      };
+      start_vblank();
     } else if (context.scanline == 261) {
-      Ppu.set_vblank(ppu.registers, false);
-      on_frame(context.frame);
+      finish_vblank() |> on_frame;
     };
 
     context.scanline = (context.scanline + 1) mod scanlines_per_frame;

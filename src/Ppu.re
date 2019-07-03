@@ -220,9 +220,16 @@ module ScrollInfo = {
       scroll.fine_y = 0;
       scroll.coarse_y = 0;
       scroll.nt_index = scroll.nt_index lxor 2;
-    | (true, false) =>
+    | (true, _) =>
       scroll.fine_y = 0;
       scroll.coarse_y = scroll.coarse_y + 1;
-    | (false, _) => scroll.fine_y = scroll.fine_y + 1
+    | _ => scroll.fine_y = scroll.fine_y + 1
     };
 };
+
+let scroll_info = (ppu: t): ScrollInfo.t =>
+  ScrollInfo.from_registers(
+    ppu.registers.ppu_address,
+    ppu.registers.control,
+    ppu.registers.fine_x,
+  );

@@ -4,6 +4,24 @@ let nes = File.rom(rom_path) |> Nes.load;
 
 let continue = _ => Nes.Continue;
 
-let on_frame = frame => Js.log(frame);
+let write: (string, Render.frame) => unit = [%bs.raw
+  {|
+    function(path, frame) {
+      const Jimp = require('jimp');
+      new Jimp({
+        data: Buffer.from(frame),
+        width: 256,
+        height: 240,
+    }, (err, image) => {
+      image.write(path);
+    });
+   }
+|}
+];
 
-Nes.step_cc(nes, ~continue, ~on_frame);
+let table = Pattern.Table.load(nes.rom);
+
+for (tick in 0 to 9) {
+  Nes.step_frame(nes);
+  write({j|tmp/out.$tick.png|j}, Render.draw(nes.ppu, table));
+};
