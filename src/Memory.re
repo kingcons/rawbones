@@ -10,7 +10,7 @@ type t = {
 let build = (rom: Rom.t): t => {
   let ram = Bytes.make(0x800, Char.chr(0));
   let mapper = Mapper.for_rom(rom);
-  let ppu = Ppu.build(mapper);
+  let ppu = Ppu.build(mapper, Bytes.sub(rom.chr, 0, 0x2000));
 
   {ram, mapper, ppu};
 };

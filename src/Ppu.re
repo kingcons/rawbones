@@ -21,9 +21,10 @@ type t = {
   name_table: array(int),
   palette_table: array(int),
   pattern_table: Mapper.t,
+  pattern_cache: Pattern.Table.t,
 };
 
-let build = (~name_table=Array.make(0x800, 0), mapper) => {
+let build = (~name_table=Array.make(0x800, 0), mapper, chr) => {
   registers: {
     control: 0,
     mask: 0,
@@ -40,6 +41,7 @@ let build = (~name_table=Array.make(0x800, 0), mapper) => {
   name_table,
   palette_table: Array.make(0x20, 0),
   pattern_table: mapper,
+  pattern_cache: Pattern.Table.load(chr),
 };
 
 let ctrl_helper = (n, unset, set, regs) =>
@@ -57,6 +59,10 @@ let vram_step = ctrl_helper(2, 1, 32);
 let sprite_address = ctrl_helper(3, 0, 0x1000);
 let background_address = ctrl_helper(4, 0, 0x1000);
 let vblank_nmi = ctrl_helper(7, NMIDisabled, NMIEnabled);
+
+let background_offset = ppu =>
+  Util.read_bit(ppu.registers.control, 3) ? 0 : 256;
+let sprite_offset = ppu => Util.read_bit(ppu.registers.control, 4) ? 0 : 256;
 
 let show_background_left = mask_helper(1);
 let show_sprites_left = mask_helper(2);

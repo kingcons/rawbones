@@ -6,7 +6,7 @@ let height = 240;
 let cycles_per_scanline = 341;
 let scanlines_per_frame = 262;
 
-let color_palatte_data = {j|
+let color_palette_data = {j|
 7c 7c 7c  00 00 fc  00 00 bc  44 28 bc
 94 00 84  a8 00 20  a8 10 00  88 14 00
 50 30 00  00 78 00  00 68 00  00 58 00
@@ -26,7 +26,7 @@ f8 d8 78  d8 f8 78  b8 f8 b8  b8 f8 d8
 |j};
 
 let color_palatte =
-  String.trim(color_palatte_data)
+  String.trim(color_palette_data)
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
   |> Array.map(str => int_of_string("0x" ++ Util.default("00", str)));
 
@@ -34,36 +34,6 @@ type context = {
   mutable scanline: int,
   mutable frame,
   mutable scroll: Ppu.ScrollInfo.t,
-};
-
-let draw = (ppu: Ppu.t, tiles: Pattern.Table.t): frame => {
-  let frame = Array.make(width * height * 4, 0);
-  let offset = ref(0);
-
-  for (x in 0 to 31) {
-    for (y in 0 to 29) {
-      let tile = tiles[x];
-
-      for (i in 0 to 7) {
-        for (j in 0 to 7) {
-          let tileValue = tile[i][j];
-
-          frame[offset^ + 3] = 255;
-
-          switch (tileValue) {
-          | 3 => frame[offset^] = 255
-          | 2 => frame[offset^ + 1] = 255
-          | 1 => frame[offset^ + 2] = 255
-          | _ => ()
-          };
-
-          offset := offset^ + 4;
-        };
-      };
-    };
-  };
-
-  frame;
 };
 
 let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
@@ -82,19 +52,22 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     };
 
   let render_tile = () => {
+    // TODO: Factor this to allow for rendering sprites too?
     let x = context.scroll.coarse_x;
     let y = context.scroll.coarse_y;
     let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
     let at_offset = nt_offset + 0x3c0;
     let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
     let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
+    let tile_index = Ppu.background_offset(ppu) + nt;
     let high_bits = palette_high_bits(at, context);
-    // TODO: The nametable byte represents the index of a 16 byte Tile
-    // in the Pattern Table. The attribute byte has the two high bits
-    // of the palette index of that tile. At this point, we can either
-    // do 16 vram reads or use Pattern.Table to retrieve the tile with
-    // precomputed low bits. Then we combine low and high bits to get
-    // a palette offset, lookup the palette value, and use it to output pixels.
+    let tile = ppu.pattern_cache[tile_index];
+    let scanline_low_bits = tile[context.scroll.fine_y];
+    // Check PPU scrolling docs. One of fine_y or fine_x does not change during rendering. Which one?
+    let palette_index =
+      high_bits lsl 2 lor scanline_low_bits[context.scroll.fine_x];
+    let color_index = Ppu.read_vram(ppu, 0x3f00 + palette_index);
+
     Ppu.ScrollInfo.next_tile(context.scroll);
   };
 

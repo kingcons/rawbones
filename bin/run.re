@@ -19,9 +19,9 @@ let write: (string, Render.frame) => unit = [%bs.raw
 |}
 ];
 
-let table = Pattern.Table.load(nes.rom);
+let table = Pattern.Table.load(nes.rom.chr);
 
-for (tick in 0 to 9) {
-  Nes.step_frame(nes);
-  write({j|tmp/out.$tick.png|j}, Render.draw(nes.ppu, table));
-};
+// for (tick in 0 to 9) {
+//   Nes.step_frame(nes);
+//   write({j|tmp/out.$tick.png|j}, Render.draw(nes.ppu, table));
+// };
