@@ -25,7 +25,7 @@ f8 d8 78  d8 f8 78  b8 f8 b8  b8 f8 d8
 00 fc fc  f8 d8 f8  00 00 00  00 00 00
 |j};
 
-let color_palatte =
+let color_palette =
   String.trim(color_palette_data)
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
   |> Array.map(str => int_of_string("0x" ++ Util.default("00", str)));
@@ -43,13 +43,22 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     scroll: Ppu.scroll_info(ppu),
   };
 
-  let palette_high_bits = (at_byte, context) =>
+  let palette_high_bits = at_byte =>
     switch (Ppu.quadrant(context.scroll)) {
     | BottomLeft => at_byte lsr 0 land 3
     | BottomRight => at_byte lsr 2 land 3
     | TopLeft => at_byte lsr 4 land 3
     | TopRight => at_byte lsr 6 land 3
     };
+
+  let render_pixel = (color_index, tile_x) => {
+    for (i in 0 to 2) {
+      let byte = color_palette[color_index * 3 + i];
+      let frame_offset =
+        context.scanline * 256 + context.scroll.coarse_x * 8 + tile_x;
+      context.frame[frame_offset] = byte;
+    };
+  };
 
   let render_tile = () => {
     // TODO: Factor this to allow for rendering sprites too?
@@ -60,13 +69,15 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
     let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
     let tile_index = Ppu.background_offset(ppu) + nt;
-    let high_bits = palette_high_bits(at, context);
+    let high_bits = palette_high_bits(at);
     let tile = ppu.pattern_cache[tile_index];
     let scanline_low_bits = tile[context.scroll.fine_y];
     // Check PPU scrolling docs. One of fine_y or fine_x does not change during rendering. Which one?
-    let palette_index =
-      high_bits lsl 2 lor scanline_low_bits[context.scroll.fine_x];
-    let color_index = Ppu.read_vram(ppu, 0x3f00 + palette_index);
+    for (i in 0 to 7) {
+      let palette_index = high_bits lsl 2 lor scanline_low_bits[i];
+      let color_index = Ppu.read_vram(ppu, 0x3f00 + palette_index);
+      render_pixel(color_index, i);
+    };
 
     Ppu.ScrollInfo.next_tile(context.scroll);
   };

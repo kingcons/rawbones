@@ -43,11 +43,13 @@ let step_cc =
   go();
 };
 
-let step_frame = (nes: t) => {
+let step_frame = (nes: t, ~on_frame: Render.frame => unit) => {
   let frame = ref(None);
   let continue = _ =>
     switch (frame^) {
-    | Some(result) => Done(result)
+    | Some(result) =>
+      on_frame(result);
+      Done(result);
     | None => Continue
     };
 
