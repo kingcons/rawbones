@@ -51,12 +51,13 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     | TopRight => at_byte lsr 6 land 3
     };
 
-  let render_pixel = (color_index, tile_x) => {
+  let render_pixel = (color_index, pixel) => {
+    let frame_offset =
+      (context.scanline * 256 + context.scroll.coarse_x * 8) * 3;
     for (i in 0 to 2) {
       let byte = color_palette[color_index * 3 + i];
-      let frame_offset =
-        context.scanline * 256 + context.scroll.coarse_x * 8 + tile_x;
-      context.frame[frame_offset] = byte;
+      let pixel_offset = frame_offset + pixel * 3 + i;
+      context.frame[pixel_offset] = byte;
     };
   };
 
