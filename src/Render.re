@@ -76,8 +76,15 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
   let render_tile = () => {
     let x = context.scroll.coarse_x;
     let y = context.scroll.coarse_y;
-    let nt = Ppu.read_vram(ppu, 0x2000 + 32 * y + x);
-    // let at = Ppu.read_vram(ppu, 0x3f00 + context.scanline);
+    let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
+    let at_offset = nt_offset + 0x3c0;
+    let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
+    let at = Ppu.read_vram(ppu, at_offset + y / 4 << 3, x / 4);
+    // The nametable byte should now points to the starting offset
+    // of a 16 byte Tile in the Pattern Table. The attribute byte
+    // has the two high bits of the palette index of the tile in
+    // question. To determine which two high bits, we need a helper
+    // along the lines of `color-quadrant` from clones.
     Ppu.ScrollInfo.next_tile(context.scroll);
   };
 
@@ -97,13 +104,7 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
 
   let finish_vblank = () => {
     Ppu.set_vblank(ppu.registers, false);
-    context.scroll = {
-      nt_index: 0,
-      coarse_x: 0,
-      coarse_y: 0,
-      fine_x: 0,
-      fine_y: 0,
-    };
+    context.scroll = Ppu.scroll_info(ppu);
     context.frame;
   };
 

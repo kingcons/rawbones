@@ -76,6 +76,8 @@ let nt_mirror = (ppu, address) => {
   };
 };
 
+let nt_offset = nt_index => 0x2000 + nt_index * 0x400;
+
 let read_vram = (ppu, address) =>
   if (address < 0x2000) {
     (ppu.pattern_table)#get_chr(address);
