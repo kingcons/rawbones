@@ -235,3 +235,17 @@ let scroll_info = (ppu: t): ScrollInfo.t =>
     ppu.registers.control,
     ppu.registers.fine_x,
   );
+
+type quad_position =
+  | TopLeft
+  | TopRight
+  | BottomLeft
+  | BottomRight;
+
+let quadrant = (scroll: ScrollInfo.t): quad_position =>
+  switch (scroll.coarse_x mod 2, scroll.coarse_y mod 2) {
+  | (0, 0) => TopLeft
+  | (0, 1) => TopRight
+  | (1, 0) => BottomLeft
+  | _ => BottomRight
+  };

@@ -73,18 +73,28 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     scroll: Ppu.scroll_info(ppu),
   };
 
+  let palette_high_bits = (at_byte, context) =>
+    switch (Ppu.quadrant(context.scroll)) {
+    | BottomLeft => at_byte lsr 0 land 3
+    | BottomRight => at_byte lsr 2 land 3
+    | TopLeft => at_byte lsr 4 land 3
+    | TopRight => at_byte lsr 6 land 3
+    };
+
   let render_tile = () => {
     let x = context.scroll.coarse_x;
     let y = context.scroll.coarse_y;
     let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
     let at_offset = nt_offset + 0x3c0;
     let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
-    let at = Ppu.read_vram(ppu, at_offset + y / 4 << 3, x / 4);
-    // The nametable byte should now points to the starting offset
-    // of a 16 byte Tile in the Pattern Table. The attribute byte
-    // has the two high bits of the palette index of the tile in
-    // question. To determine which two high bits, we need a helper
-    // along the lines of `color-quadrant` from clones.
+    let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
+    let high_bits = palette_high_bits(at, context);
+    // TODO: The nametable byte represents the index of a 16 byte Tile
+    // in the Pattern Table. The attribute byte has the two high bits
+    // of the palette index of that tile. At this point, we can either
+    // do 16 vram reads or use Pattern.Table to retrieve the tile with
+    // precomputed low bits. Then we combine low and high bits to get
+    // a palette offset, lookup the palette value, and use it to output pixels.
     Ppu.ScrollInfo.next_tile(context.scroll);
   };
 
