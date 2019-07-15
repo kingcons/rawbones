@@ -3,7 +3,8 @@ type frame = array(int);
 let width = 256;
 let height = 240;
 
-let cycles_per_scanline = 341;
+// NOTE: One CPU cycle is 3 PPU cycles.
+let cycles_per_scanline = 341 / 3;
 let scanlines_per_frame = 262;
 
 let color_palette_data = {j|
@@ -99,7 +100,13 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
 
   let finish_vblank = () => {
     Ppu.set_vblank(ppu.registers, false);
-    context.scroll = Ppu.scroll_info(ppu);
+    context.scroll = {
+      nt_index: 0,
+      coarse_x: 0,
+      coarse_y: 0,
+      fine_x: 0,
+      fine_y: 0,
+    };
     context.frame;
   };
 

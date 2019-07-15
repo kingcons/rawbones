@@ -60,9 +60,9 @@ let sprite_address = ctrl_helper(3, 0, 0x1000);
 let background_address = ctrl_helper(4, 0, 0x1000);
 let vblank_nmi = ctrl_helper(7, NMIDisabled, NMIEnabled);
 
+let sprite_offset = ppu => Util.read_bit(ppu.registers.control, 3) ? 256 : 0;
 let background_offset = ppu =>
-  Util.read_bit(ppu.registers.control, 3) ? 0 : 256;
-let sprite_offset = ppu => Util.read_bit(ppu.registers.control, 4) ? 0 : 256;
+  Util.read_bit(ppu.registers.control, 4) ? 256 : 0;
 
 let show_background_left = mask_helper(1);
 let show_sprites_left = mask_helper(2);

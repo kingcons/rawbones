@@ -24,9 +24,9 @@ let load = (rom: Rom.t): t => {
 let step = (nes: t, ~on_frame: Render.frame => unit) => {
   Cpu.step(nes.cpu);
 
-  if (nes.cpu.cycles >= 113) {
+  if (nes.cpu.cycles >= Render.cycles_per_scanline) {
     nes.render(~on_frame);
-    nes.cpu.cycles = nes.cpu.cycles mod 113;
+    nes.cpu.cycles = nes.cpu.cycles mod Render.cycles_per_scanline;
   };
 };
 
