@@ -102,13 +102,8 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
 
   let finish_vblank = () => {
     Ppu.set_vblank(ppu.registers, false);
-    context.scroll = {
-      nt_index: 0,
-      coarse_x: 0,
-      coarse_y: 0,
-      fine_x: 0,
-      fine_y: 0,
-    };
+    ppu.registers.ppu_address = ppu.registers.buffer;
+    context.scroll = Ppu.scroll_info(ppu);
     context.frame;
   };
 
