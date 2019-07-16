@@ -16,7 +16,7 @@ let load = (rom: Rom.t): t => {
   Cpu.reset(cpu);
 
   let ppu = memory.ppu;
-  let render = Render.make(ppu, ~on_nmi=() => Cpu.nmi(cpu));
+  let render = Render.make(ppu, rom, ~on_nmi=() => Cpu.nmi(cpu));
 
   {cpu, ppu, rom, render};
 };

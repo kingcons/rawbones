@@ -1,5 +1,12 @@
 type frame = array(int);
 
+type t = {
+  mutable scanline: int,
+  mutable scroll: Ppu.ScrollInfo.t,
+  mutable cache: Pattern.Table.t,
+  mutable frame,
+};
+
 let width = 256;
 let height = 240;
 
@@ -31,17 +38,12 @@ let color_palette =
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
   |> Array.map(str => int_of_string("0x" ++ Util.default("00", str)));
 
-type context = {
-  mutable scanline: int,
-  mutable frame,
-  mutable scroll: Ppu.ScrollInfo.t,
-};
-
-let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
+let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let context = {
     scanline: 0,
-    frame: Array.make(width * height * 3, 0),
     scroll: Ppu.scroll_info(ppu),
+    cache: Pattern.Table.load(rom.chr),
+    frame: Array.make(width * height * 3, 0),
   };
 
   let palette_high_bits = at_byte =>
@@ -72,7 +74,7 @@ let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
     let tile_index = Ppu.background_offset(ppu) + nt;
     let high_bits = palette_high_bits(at);
-    let tile = ppu.pattern_cache[tile_index];
+    let tile = context.cache[tile_index];
     let scanline_low_bits = tile[context.scroll.fine_y];
     // Check PPU scrolling docs. One of fine_y or fine_x does not change during rendering. Which one?
     for (i in 0 to 7) {

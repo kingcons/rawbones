@@ -5,7 +5,7 @@ open Spec;
 let nestest = rom("nestest");
 
 describe("PPU", () => {
-  let ppu = Ppu.build(Mapper.for_rom(nestest), nestest.chr);
+  let ppu = Ppu.build(Mapper.for_rom(nestest));
   let regs = ppu.registers;
 
   describe("PPUCTRL", () => {
@@ -169,7 +169,6 @@ describe("PPU", () => {
     let ppu =
       Ppu.build(
         Mapper.for_rom(nestest),
-        nestest.chr,
         ~name_table=Array.init(0x800, i => i),
       );
 

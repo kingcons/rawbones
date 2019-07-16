@@ -21,10 +21,9 @@ type t = {
   name_table: array(int),
   palette_table: array(int),
   pattern_table: Mapper.t,
-  pattern_cache: Pattern.Table.t,
 };
 
-let build = (~name_table=Array.make(0x800, 0), mapper, chr) => {
+let build = (~name_table=Array.make(0x800, 0), mapper) => {
   registers: {
     control: 0,
     mask: 0,
@@ -41,7 +40,6 @@ let build = (~name_table=Array.make(0x800, 0), mapper, chr) => {
   name_table,
   palette_table: Array.make(0x20, 0),
   pattern_table: mapper,
-  pattern_cache: Pattern.Table.load(chr),
 };
 
 let ctrl_helper = (n, unset, set, regs) =>
@@ -181,7 +179,6 @@ let store = (ppu: t, address, value) =>
    The PPU has a single 15 bit address register, `v`, used for all reads and writes to VRAM.
    However, since the NES only has an 8-bit data bus, all modifications to the address
    register must be done one byte at a time. As a consequence, a buffer is used to modify `v`.
-
    The 15-bit buffer register, `t`, must receive two writes before forming a completed address.
    Two different interfaces are exposed for the comfort of the application programmer:
 
