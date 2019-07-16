@@ -69,6 +69,8 @@ let show_sprites = mask_helper(4);
 
 let set_sprite_zero_hit = status_helper(6);
 let set_vblank = status_helper(7);
+let rendering_enabled = ppu =>
+  show_background(ppu.registers) || show_sprites(ppu.registers);
 
 let nt_mirror = (ppu, address) => {
   let mirroring = (ppu.pattern_table)#mirroring;

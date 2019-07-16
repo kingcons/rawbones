@@ -87,8 +87,10 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   };
 
   let render_scanline = () => {
-    for (_ in 0 to 31) {
-      render_tile();
+    if (Ppu.rendering_enabled(ppu)) {
+      for (_ in 0 to 31) {
+        render_tile();
+      };
     };
     Ppu.ScrollInfo.next_scanline(context.scroll);
   };
@@ -101,8 +103,10 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   };
 
   let finish_vblank = () => {
+    if (Ppu.rendering_enabled(ppu)) {
+      ppu.registers.ppu_address = ppu.registers.buffer;
+    };
     Ppu.set_vblank(ppu.registers, false);
-    ppu.registers.ppu_address = ppu.registers.buffer;
     context.scroll = Ppu.scroll_info(ppu);
     context.frame;
   };
