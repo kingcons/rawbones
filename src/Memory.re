@@ -5,14 +5,16 @@ type t = {
   ram: bytes,
   mapper: Mapper.t,
   ppu: Ppu.t,
+  gamepad: Gamepad.t,
 };
 
 let build = (rom: Rom.t): t => {
   let ram = Bytes.make(0x800, Char.chr(0));
   let mapper = Mapper.for_rom(rom);
   let ppu = Ppu.build(mapper);
+  let gamepad = Gamepad.build();
 
-  {ram, mapper, ppu};
+  {ram, mapper, ppu, gamepad};
 };
 
 let ppu = memory => memory.ppu;
@@ -26,9 +28,11 @@ let get_byte = (mem: t, loc: address): int =>
     Char.code(Bytes.get(mem.ram, loc land 0x7ff));
   } else if (loc < 0x4000) {
     Ppu.fetch(mem.ppu, loc);
+  } else if (loc == 0x4016) {
+    Gamepad.fetch(mem.gamepad);
   } else if (loc < 0x8000) {
     0;
-    // TODO: APU, I/O and such
+    // TODO: APU and such
   } else {
     (mem.mapper)#get_prg(loc);
   };
@@ -38,6 +42,8 @@ let set_byte = (mem: t, loc: address, value: byte) =>
     Bytes.set(mem.ram, loc, Char.chr(value));
   } else if (loc < 0x4000) {
     Ppu.store(mem.ppu, loc, value);
+  } else if (loc == 0x4016) {
+    Gamepad.reset(mem.gamepad);
   } else if (loc < 0x8000) {
     ();
   } else {
