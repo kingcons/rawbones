@@ -5,7 +5,6 @@ type cpu = {
   memory: Memory.t,
   mutable status: Flag.Register.t,
   mutable cycles: int,
-  mutable wait_cycles: int,
   mutable x: byte,
   mutable y: byte,
   mutable acc: byte,
