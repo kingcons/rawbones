@@ -1,8 +1,89 @@
+/*
+   See: https://wiki.nesdev.com/w/index.php/PPU_scrolling#Summary
+
+   The PPU has a single 15 bit address register, `v`, used for all reads and writes to VRAM.
+   However, since the NES only has an 8-bit data bus, all modifications to the address
+   register must be done one byte at a time. As a consequence, a buffer is used to modify `v`.
+   The 15-bit buffer register, `t`, must receive two writes before forming a completed address.
+   Two different interfaces are exposed for the comfort of the application programmer:
+
+   1. The PPUSCROLL interface at $2005 for setting the scroll position of the next frame.
+     * Each byte it receives specifies either the coarse x and fine x or coarse y and fine y coordinates.
+     * It can be written to at any point during vblank and will copy `t` to `v` just before rendering.
+     * It can also be written to during hblank for mid-frame raster effects.
+   2. The PPUADDR interface at $2006 for updating the address before using PPUDATA to read/write VRAM.
+     * Each byte it receives is either the low byte or high byte for the buffer.
+     * It immediately copies `t` to `v` after the second write.
+
+   The current value of the buffer is copied to the address register during the last vblank scanline.
+   During rendering, the address register is updated by the PPU to reflect the current memory access.
+ */
+
+module ScrollInfo = {
+  type t = {
+    mutable nt_index: int,
+    mutable coarse_x: int,
+    mutable coarse_y: int,
+    mutable fine_x: int,
+    mutable fine_y: int,
+  };
+
+  let from_registers = (base, control, fine_x): t => {
+    nt_index: control land 0x3,
+    coarse_x: base land 0x1f,
+    coarse_y: base lsr 5 land 0x1f,
+    fine_x,
+    fine_y: base lsr 12,
+  };
+
+  let build = (ppu: Ppu.t) => {
+    from_registers(
+      ppu.registers.ppu_address,
+      ppu.registers.control,
+      ppu.registers.fine_x,
+    );
+  };
+
+  let next_tile = scroll =>
+    if (scroll.coarse_x == 31) {
+      scroll.coarse_x = 0;
+      scroll.nt_index = scroll.nt_index lxor 1;
+    } else {
+      scroll.coarse_x = scroll.coarse_x + 1;
+    };
+
+  let next_scanline = scroll =>
+    switch (scroll.fine_y == 7, scroll.coarse_y == 29) {
+    | (true, true) =>
+      scroll.fine_y = 0;
+      scroll.coarse_y = 0;
+      scroll.nt_index = scroll.nt_index lxor 2;
+    | (true, _) =>
+      scroll.fine_y = 0;
+      scroll.coarse_y = scroll.coarse_y + 1;
+    | _ => scroll.fine_y = scroll.fine_y + 1
+    };
+
+  type quad_position =
+    | TopLeft
+    | TopRight
+    | BottomLeft
+    | BottomRight;
+
+  let quadrant = (scroll: t): quad_position =>
+    switch (scroll.coarse_x mod 2, scroll.coarse_y mod 2) {
+    | (0, 0) => TopLeft
+    | (0, 1) => TopRight
+    | (1, 0) => BottomLeft
+    | _ => BottomRight
+    };
+};
+
 type frame = array(int);
 
 type t = {
   mutable scanline: int,
-  mutable scroll: Ppu.ScrollInfo.t,
+  mutable scroll: ScrollInfo.t,
   mutable cache: Pattern.Table.t,
   mutable frame,
 };
@@ -41,13 +122,13 @@ let color_palette =
 let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let context = {
     scanline: 0,
-    scroll: Ppu.scroll_info(ppu),
+    scroll: ScrollInfo.build(ppu),
     cache: Pattern.Table.load(rom.chr),
     frame: Array.make(width * height * 3, 0),
   };
 
   let palette_high_bits = at_byte =>
-    switch (Ppu.quadrant(context.scroll)) {
+    switch (ScrollInfo.quadrant(context.scroll)) {
     | BottomLeft => at_byte lsr 0 land 3
     | BottomRight => at_byte lsr 2 land 3
     | TopLeft => at_byte lsr 4 land 3
@@ -83,7 +164,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
       render_pixel(color_index, i);
     };
 
-    Ppu.ScrollInfo.next_tile(context.scroll);
+    ScrollInfo.next_tile(context.scroll);
   };
 
   let render_scanline = () => {
@@ -92,7 +173,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
         render_tile();
       };
     };
-    Ppu.ScrollInfo.next_scanline(context.scroll);
+    ScrollInfo.next_scanline(context.scroll);
   };
 
   let start_vblank = () => {
@@ -107,7 +188,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
       ppu.registers.ppu_address = ppu.registers.buffer;
     };
     Ppu.set_vblank(ppu.registers, false);
-    context.scroll = Ppu.scroll_info(ppu);
+    context.scroll = ScrollInfo.build(ppu);
     context.frame;
   };
 
