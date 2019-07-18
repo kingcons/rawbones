@@ -37,11 +37,23 @@ let get_byte = (mem: t, loc: address): int =>
     (mem.mapper)#get_prg(loc);
   };
 
+let dma = (mem, value) => {
+  let page = value lsl 8;
+  for (i in 0 to 255) {
+    let index = page + i;
+    let oam_byte = get_byte(mem, index);
+    Ppu.store(mem.ppu, 4, oam_byte);
+  };
+  // TODO: Implement CPU wait cycles so PPU doesn't spend a few scanlines "catching up".
+};
+
 let set_byte = (mem: t, loc: address, value: byte) =>
   if (loc < 0x2000) {
     Bytes.set(mem.ram, loc, Char.chr(value));
   } else if (loc < 0x4000) {
     Ppu.store(mem.ppu, loc, value);
+  } else if (loc == 0x4014) {
+    dma(mem, value);
   } else if (loc == 0x4016) {
     Gamepad.reset(mem.gamepad);
   } else if (loc < 0x8000) {
