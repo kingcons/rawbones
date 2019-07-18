@@ -31,6 +31,7 @@ let build = memory => {
   {
     memory,
     cycles: 0,
+    wait_cycles: 0,
     x: 0,
     y: 0,
     acc: 0,
@@ -414,15 +415,22 @@ type error =
   | InstructionNotImplemented(string)
   | OpcodeNotFound(int);
 
-let step = (cpu: t) => {
-  let opcode = Memory.get_byte(cpu.memory, cpu.pc);
-  cpu.pc = cpu.pc + 1;
+let step = (cpu: t) =>
+  if (cpu.memory.dma) {
+    cpu.wait_cycles = 512;
+    cpu.memory.dma = false;
+  } else if (cpu.wait_cycles > 0) {
+    cpu.cycles = cpu.cycles + 64;
+    cpu.wait_cycles = cpu.wait_cycles - 64;
+  } else {
+    let opcode = Memory.get_byte(cpu.memory, cpu.pc);
+    cpu.pc = cpu.pc + 1;
 
-  switch (InstructionTable.find(opcode, table)) {
-  | command => command(cpu)
-  | exception Not_found => raise(OpcodeNotFound(opcode))
+    switch (InstructionTable.find(opcode, table)) {
+    | command => command(cpu)
+    | exception Not_found => raise(OpcodeNotFound(opcode))
+    };
   };
-};
 
 let interrupt_goto = (cpu: t, address: address) => {
   stack_push(cpu, cpu.pc lsr 8);

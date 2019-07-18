@@ -6,6 +6,7 @@ type t = {
   mapper: Mapper.t,
   ppu: Ppu.t,
   gamepad: Gamepad.t,
+  mutable dma: bool,
 };
 
 let build = (rom: Rom.t): t => {
@@ -14,7 +15,7 @@ let build = (rom: Rom.t): t => {
   let ppu = Ppu.build(mapper);
   let gamepad = Gamepad.build();
 
-  {ram, mapper, ppu, gamepad};
+  {ram, mapper, ppu, gamepad, dma: false};
 };
 
 let ppu = memory => memory.ppu;
@@ -44,7 +45,7 @@ let dma = (mem, value) => {
     let oam_byte = get_byte(mem, index);
     Ppu.store(mem.ppu, 4, oam_byte);
   };
-  // TODO: Implement CPU wait cycles so PPU doesn't spend a few scanlines "catching up".
+  mem.dma = true;
 };
 
 let set_byte = (mem: t, loc: address, value: byte) =>
