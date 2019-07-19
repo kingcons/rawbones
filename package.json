@@ -4,7 +4,7 @@
   "scripts": {
     "build": "bsb -make-world",
     "clean": "bsb -clean-world",
-    "rom": "node bin/rom.js",
+    "rom": "node bin/run.bs.js",
     "start": "bsb -make-world -w",
     "test": "yarn run jest"
   },
@@ -17,7 +17,8 @@
   "devDependencies": {
     "@glennsl/bs-jest": "^0.4.8",
     "bs-platform": "^5.0.4",
-    "jest": "^24.8.0"
+    "jest": "^24.8.0",
+    "jimp": "^0.6.4"
   },
   "dependencies": {
     "@glennsl/bs-json": "^3.0.0"

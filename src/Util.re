@@ -25,6 +25,15 @@ let expand_path = (path: string) => {
   Node.Path.resolve(__dirname, "../" ++ path);
 };
 
+let set_bit = (value: int, index: int, to_: bool) => {
+  let mask = 1 lsl index;
+  if (to_) {
+    value lor mask;
+  } else {
+    value land lnot(mask);
+  };
+};
+
 let read_bit = (value: int, index: int): bool => {
   let mask = 1 lsl index;
   value land mask == mask;

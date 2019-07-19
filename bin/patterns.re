@@ -5,7 +5,7 @@ let rom = File.rom(rom_path);
 {
   open Pattern;
 
-  let table = Table.load(rom);
+  let table = Table.load(rom.chr);
 
   let format = n =>
     switch (n) {

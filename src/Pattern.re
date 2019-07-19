@@ -37,7 +37,7 @@ module Tile = {
 module Table = {
   type t = array(Tile.t);
 
-  let load = (rom: Rom.t): array(Tile.t) => {
-    Array.init(rom.chr_count * 512, i => Tile.from_bytes(rom.chr, i));
+  let load = (bytes): array(Tile.t) => {
+    Array.init(512, i => Tile.from_bytes(bytes, i));
   };
 };

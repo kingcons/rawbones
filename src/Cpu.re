@@ -423,3 +423,12 @@ let step = (cpu: t) => {
   | exception Not_found => raise(OpcodeNotFound(opcode))
   };
 };
+
+let interrupt_goto = (cpu: t, address: address) => {
+  stack_push(cpu, cpu.pc lsr 8);
+  stack_push(cpu, cpu.pc land 0xff);
+  stack_push(cpu, Register.to_int(cpu.status));
+  cpu.pc = Memory.get_word(cpu.memory, address);
+};
+
+let nmi = (cpu: t) => interrupt_goto(cpu, 0xfffa);

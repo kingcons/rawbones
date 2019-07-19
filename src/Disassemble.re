@@ -34,6 +34,17 @@ let format =
   fargs == "" ? base ++ "\n" : base ++ " " ++ fargs ++ "\n";
 };
 
+let inspector = (memory: Memory.t, address) => {
+  let opcodes = Array.fold_left(add_opcodes, Opcodes.empty, Instruction.all);
+  let code = Memory.get_byte(memory, address);
+  let hcode = to_hex(code);
+
+  switch (Opcodes.find(code, opcodes)) {
+  | (instruction, _) => instruction.description
+  | exception Not_found => {j|ERROR: could not find opcode $hcode|j}
+  };
+};
+
 let make = (memory: Memory.t) => {
   let opcodes = Array.fold_left(add_opcodes, Opcodes.empty, Instruction.all);
 
@@ -42,14 +53,20 @@ let make = (memory: Memory.t) => {
       "";
     } else {
       let code = Memory.get_byte(memory, start);
-      let (instruction, opcode) = Opcodes.find(code, opcodes);
-      let args =
-        Array.init(opcode.length - 1, n =>
-          Memory.get_byte(memory, start + n + 1)
-        );
 
-      format(start, opcode, instruction, args)
-      ++ run(start + opcode.length, length - 1);
+      switch (Opcodes.find(code, opcodes)) {
+      | (instruction, opcode) =>
+        let args =
+          Array.init(opcode.length - 1, n =>
+            Memory.get_byte(memory, start + n + 1)
+          );
+
+        format(start, opcode, instruction, args)
+        ++ run(start + opcode.length, length - 1);
+      | exception Not_found =>
+        let hcode = to_hex(code);
+        {j|ERROR: could not find opcode $hcode|j};
+      };
     };
 
   run;

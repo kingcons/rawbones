@@ -41,12 +41,15 @@ let parse = (path: string, contents: bytes): t => {
   let prg_size = 0x4000 * prg_count;
   let chr_size = 0x2000 * chr_count;
 
+  let prg = Bytes.sub(contents, 16, prg_size);
+  let chr =
+    chr_count == 0
+      ? Bytes.make(0x2000, Char.chr(0))
+      : Bytes.sub(contents, 16 + prg_size, chr_size);
+
   let flag6 = byte_at(6);
   let flag7 = byte_at(7);
   let mirroring = flag6 land 0x1 == 0 ? Horizontal : Vertical;
-
-  let prg = Bytes.sub(contents, 16, prg_size);
-  let chr = Bytes.sub(contents, 16 + prg_size, chr_size);
 
   let mapper_id = flag6 lsr 4 + flag7 land 0x10;
   let mapper =
