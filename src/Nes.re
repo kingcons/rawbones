@@ -3,6 +3,7 @@ type t = {
   ppu: Ppu.t,
   rom: Rom.t,
   render: (~on_frame: Render.frame => unit) => unit,
+  mutable frame: Render.frame,
 };
 
 type result('a) =
@@ -18,7 +19,7 @@ let load = (rom: Rom.t): t => {
   let ppu = memory.ppu;
   let render = Render.make(ppu, rom, ~on_nmi=() => Cpu.nmi(cpu));
 
-  {cpu, ppu, rom, render};
+  {cpu, ppu, rom, render, frame: [||]};
 };
 
 /*

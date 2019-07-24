@@ -11,8 +11,7 @@ describe("NES", () => {
     ignore(Nes.step_frame(nes, _frame => ()));
     ignore(Nes.step_frame(nes, _frame => ()));
     ignore(Nes.step_frame(nes, _frame => ()));
-
-    let frame = Nes.step_frame(nes, _frame => ());
+    ignore(Nes.step_frame(nes, _frame => ()));
 
     // test("produces a frame", ()
     //   // TODO: actually render
