@@ -83,6 +83,7 @@ type frame = array(int);
 
 type t = {
   mutable scanline: int,
+  mutable sprites: Sprite.Table.t,
   mutable scroll: ScrollInfo.t,
   mutable cache: Pattern.Table.t,
   mutable frame,
@@ -122,18 +123,11 @@ let color_palette =
 let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let context = {
     scanline: 0,
+    sprites: Array.make(8, None),
     scroll: ScrollInfo.build(ppu),
     cache: Pattern.Table.load(rom.chr),
     frame: Array.make(width * height * 3, 0),
   };
-
-  let palette_high_bits = at_byte =>
-    switch (ScrollInfo.quadrant(context.scroll)) {
-    | BottomLeft => at_byte lsr 0 land 3
-    | BottomRight => at_byte lsr 2 land 3
-    | TopLeft => at_byte lsr 4 land 3
-    | TopRight => at_byte lsr 6 land 3
-    };
 
   let render_pixel = (color_index, pixel) => {
     let frame_offset =
@@ -145,30 +139,45 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     };
   };
 
+  let palette_high_bits = at_byte =>
+    switch (ScrollInfo.quadrant(context.scroll)) {
+    | BottomLeft => at_byte lsr 0 land 3
+    | BottomRight => at_byte lsr 2 land 3
+    | TopLeft => at_byte lsr 4 land 3
+    | TopRight => at_byte lsr 6 land 3
+    };
+
+  let find_tile = (x, y) => {
+    let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
+    let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
+    let tile_index = Ppu.background_offset(ppu) + nt;
+    context.cache[tile_index];
+  };
+
+  let find_attr = (x, y) => {
+    let at_offset = Ppu.nt_offset(context.scroll.nt_index) + 0x3c0;
+    let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
+    palette_high_bits(at);
+  };
+
   let render_tile = () => {
-    // TODO: Factor this to allow for rendering sprites too?
     let x = context.scroll.coarse_x;
     let y = context.scroll.coarse_y;
-    let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
-    let at_offset = nt_offset + 0x3c0;
-    let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
-    let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
-    let tile_index = Ppu.background_offset(ppu) + nt;
-    let high_bits = palette_high_bits(at);
-    let tile = context.cache[tile_index];
-    let scanline_low_bits = tile[context.scroll.fine_y];
+    let high_bits = find_attr(x, y);
+    let tile = find_tile(x, y);
+    let low_bits = tile[context.scroll.fine_y];
     // Check PPU scrolling docs. One of fine_y or fine_x does not change during rendering. Which one?
     for (i in 0 to 7) {
-      let palette_index = high_bits lsl 2 lor scanline_low_bits[i];
+      let palette_index = high_bits lsl 2 lor low_bits[i];
       let color_index = Ppu.read_vram(ppu, 0x3f00 + palette_index);
       render_pixel(color_index, i);
     };
-
     ScrollInfo.next_tile(context.scroll);
   };
 
   let render_scanline = () => {
     if (Ppu.rendering_enabled(ppu)) {
+      context.sprites = Sprite.Table.build(ppu.oam, context.scanline);
       for (_ in 0 to 31) {
         render_tile();
       };
