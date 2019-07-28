@@ -89,6 +89,10 @@ type t = {
   mutable frame,
 };
 
+type attr_byte =
+  | SpriteAttr
+  | BackgrAttr;
+
 let width = 256;
 let height = 240;
 
@@ -139,41 +143,51 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     };
   };
 
-  let palette_high_bits = at_byte =>
-    switch (ScrollInfo.quadrant(context.scroll)) {
-    | BottomLeft => at_byte lsr 0 land 3
-    | BottomRight => at_byte lsr 2 land 3
-    | TopLeft => at_byte lsr 4 land 3
-    | TopRight => at_byte lsr 6 land 3
+  let palette_high_bits = (at_byte, kind) =>
+    switch (ScrollInfo.quadrant(context.scroll), kind) {
+    | (_, SpriteAttr) => at_byte land 3
+    | (BottomLeft, _) => at_byte lsr 0 land 3
+    | (BottomRight, _) => at_byte lsr 2 land 3
+    | (TopLeft, _) => at_byte lsr 4 land 3
+    | (TopRight, _) => at_byte lsr 6 land 3
     };
 
   let find_tile = (x, y) => {
     let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
     let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
-    let tile_index = Ppu.background_offset(ppu) + nt;
-    context.cache[tile_index];
+    let pattern_index = Ppu.background_offset(ppu) + nt;
+    context.cache[pattern_index];
   };
 
   let find_attr = (x, y) => {
     let at_offset = Ppu.nt_offset(context.scroll.nt_index) + 0x3c0;
     let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
-    palette_high_bits(at);
+    palette_high_bits(at, BackgrAttr);
   };
 
-  let sprite_color = _sprite => None;
-
-  let sprite_pixels = () => {
-    let pixels = Array.make(8, None);
-    let start = context.scroll.coarse_x * 8;
-    for (i in 0 to 7) {
-      let sprite =
-        List.find(Sprite.Tile.on_tile(start + i), context.sprites);
-      switch (sprite) {
-      | Some(s) => pixels[i] = Some(sprite_color(s))
-      | None => ()
-      };
+  let find_color = (high_bits, low_bits, kind) => {
+    let palette_offset = high_bits lsl 2 lor low_bits;
+    switch (kind) {
+    | BackgrAttr => Ppu.read_vram(ppu, 0x3f00 + palette_offset)
+    | SpriteAttr => Ppu.read_vram(ppu, 0x3f10 + palette_offset)
     };
-    pixels;
+  };
+
+  let sprite_color = (sprite: Sprite.Tile.t, x_position) => {
+    let pattern_index = Ppu.sprite_offset(ppu) + sprite.tile_index;
+    let tile = context.cache[pattern_index];
+    let high_bits = palette_high_bits(sprite.attributes, SpriteAttr);
+    let low_bits = tile[context.scroll.fine_y];
+    let pattern_x = x_position - sprite.x_position;
+    find_color(high_bits, low_bits[pattern_x], SpriteAttr);
+  };
+
+  let sprite_pixel = x => {
+    let sprite = List.find(Sprite.Tile.on_tile(x), context.sprites);
+    switch (sprite) {
+    | Some(s) => Some(sprite_color(s, x))
+    | None => None
+    };
   };
 
   let render_tile = () => {
@@ -182,11 +196,11 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     let high_bits = find_attr(x, y);
     let tile = find_tile(x, y);
     let low_bits = tile[context.scroll.fine_y];
-    // Check PPU scrolling docs. One of fine_y or fine_x does not change during rendering. Which one?
     for (i in 0 to 7) {
-      let palette_index = high_bits lsl 2 lor low_bits[i];
-      let color_index = Ppu.read_vram(ppu, 0x3f00 + palette_index);
-      render_pixel(color_index, i);
+      let bg_color = find_color(high_bits, low_bits[i], BackgrAttr);
+      let sprite_color = sprite_pixel(x * 8 + i);
+      // Do sprite priority work here to decide what to render out.
+      render_pixel(bg_color, i);
     };
     ScrollInfo.next_tile(context.scroll);
   };
