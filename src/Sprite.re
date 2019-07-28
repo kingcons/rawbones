@@ -14,27 +14,34 @@ module Tile = {
       attributes: oam[start + 2],
     };
   };
+
+  let on_line = (scanline, top_of_sprite) => {
+    let y_distance = scanline - top_of_sprite;
+    y_distance >= 0 && y_distance < 8;
+  };
+
+  let on_tile = (tile_x, sprite) =>
+    switch (sprite) {
+    | None => false
+    | Some(s) => s.x_position <= tile_x && tile_x < s.x_position + 8
+    };
 };
 
 module Table = {
-  type t = array(option(Tile.t));
+  type t = list(option(Tile.t));
 
   let build = (oam, scanline): t => {
     let sprites = Array.make(8, None);
     let count = ref(0);
-    // Go through all 64 sprites.
     for (index in 0 to 63) {
-      let top_of_sprite = oam[index * 4];
-      // Compute the distance between top of sprite and current line.
-      let y_distance = scanline - top_of_sprite;
-      // Only 8 sprites can be displayed per scanline.
-      // If it's non-negative and less than 8, it's visible.
-      if (y_distance >= 0 && y_distance < 8 && count^ < 8) {
-        // Add the sprite to the current scanline and bump the count.
-        sprites[count^] = Some(Tile.make(oam, index * 4));
-        count := count^ + 1;
+      if (Tile.on_line(scanline, oam[index * 4])) {
+        // TODO: Sprite Overflow.
+        if (count^ < 8) {
+          sprites[count^] = Some(Tile.make(oam, index * 4));
+          count := count^ + 1;
+        };
       };
     };
-    sprites;
+    Array.to_list(sprites);
   };
 };

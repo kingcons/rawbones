@@ -123,7 +123,7 @@ let color_palette =
 let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let context = {
     scanline: 0,
-    sprites: Array.make(8, None),
+    sprites: [],
     scroll: ScrollInfo.build(ppu),
     cache: Pattern.Table.load(rom.chr),
     frame: Array.make(width * height * 3, 0),
@@ -158,6 +158,22 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     let at_offset = Ppu.nt_offset(context.scroll.nt_index) + 0x3c0;
     let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
     palette_high_bits(at);
+  };
+
+  let sprite_color = _sprite => None;
+
+  let sprite_pixels = () => {
+    let pixels = Array.make(8, None);
+    let start = context.scroll.coarse_x * 8;
+    for (i in 0 to 7) {
+      let sprite =
+        List.find(Sprite.Tile.on_tile(start + i), context.sprites);
+      switch (sprite) {
+      | Some(s) => pixels[i] = Some(sprite_color(s))
+      | None => ()
+      };
+    };
+    pixels;
   };
 
   let render_tile = () => {
