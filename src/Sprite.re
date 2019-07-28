@@ -15,6 +15,8 @@ module Tile = {
     };
   };
 
+  let behind = sprite => Util.read_bit(sprite.attributes, 5);
+
   let on_line = (scanline, top_of_sprite) => {
     let y_distance = scanline - top_of_sprite;
     y_distance >= 0 && y_distance < 8;

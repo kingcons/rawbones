@@ -165,7 +165,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     palette_high_bits(at, BackgrAttr);
   };
 
-  let find_color = (high_bits, low_bits, kind) => {
+  let get_color = (high_bits, low_bits, kind) => {
     let palette_offset = high_bits lsl 2 lor low_bits;
     switch (kind) {
     | BackgrAttr => Ppu.read_vram(ppu, 0x3f00 + palette_offset)
@@ -174,19 +174,31 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   };
 
   let sprite_color = (sprite: Sprite.Tile.t, x_position) => {
+    // TODO: Handle horizontally or vertically flipped sprites.
     let pattern_index = Ppu.sprite_offset(ppu) + sprite.tile_index;
     let tile = context.cache[pattern_index];
     let high_bits = palette_high_bits(sprite.attributes, SpriteAttr);
     let low_bits = tile[context.scroll.fine_y];
     let pattern_x = x_position - sprite.x_position;
-    find_color(high_bits, low_bits[pattern_x], SpriteAttr);
+    get_color(high_bits, low_bits[pattern_x], SpriteAttr);
   };
 
   let sprite_pixel = x => {
-    let sprite = List.find(Sprite.Tile.on_tile(x), context.sprites);
-    switch (sprite) {
-    | Some(s) => Some(sprite_color(s, x))
-    | None => None
+    // TODO: Does on_tile find the first sprite that overlaps this _pixel_?
+    switch (List.find(Sprite.Tile.on_tile(x), context.sprites)) {
+    | Some(item) => sprite_color(item, x)
+    | None => 0
+    | exception Not_found => 0
+    };
+  };
+
+  let pixel_priority = (backdrop, bg_color, sprite_color) => {
+    // TODO: Sprite Priority!
+    switch (bg_color > 0, sprite_color > 0) {
+    | (true, true) => sprite_color
+    | (true, false) => bg_color
+    | (false, true) => sprite_color
+    | (false, false) => backdrop
     };
   };
 
@@ -194,19 +206,20 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     let x = context.scroll.coarse_x;
     let y = context.scroll.coarse_y;
     let high_bits = find_attr(x, y);
-    let tile = find_tile(x, y);
-    let low_bits = tile[context.scroll.fine_y];
+    let low_bits = find_tile(x, y)[context.scroll.fine_y];
+    let backdrop = Ppu.read_vram(ppu, 0x3f00);
     for (i in 0 to 7) {
-      let bg_color = find_color(high_bits, low_bits[i], BackgrAttr);
+      let bg_color = get_color(high_bits, low_bits[i], BackgrAttr);
       let sprite_color = sprite_pixel(x * 8 + i);
-      // Do sprite priority work here to decide what to render out.
-      render_pixel(bg_color, i);
+      let final_color = pixel_priority(backdrop, bg_color, sprite_color);
+      render_pixel(final_color, i);
     };
     ScrollInfo.next_tile(context.scroll);
   };
 
   let render_scanline = () => {
     if (Ppu.rendering_enabled(ppu)) {
+      // TODO: Check for sprite zero hit.
       context.sprites = Sprite.Table.build(ppu.oam, context.scanline);
       for (_ in 0 to 31) {
         render_tile();
