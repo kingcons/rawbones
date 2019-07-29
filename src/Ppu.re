@@ -72,6 +72,7 @@ let set_vblank = status_helper(7);
 let rendering_enabled = ppu =>
   show_background(ppu.registers) || show_sprites(ppu.registers);
 
+let nt_offset = nt_index => 0x2000 + nt_index * 0x400;
 let nt_mirror = (ppu, address) => {
   let mirroring = (ppu.pattern_table)#mirroring;
   // Bit 11 indicates we're reading from nametables 3 and 4, i.e. 2800 and 2C00.
@@ -81,8 +82,8 @@ let nt_mirror = (ppu, address) => {
   | (Rom.Vertical, _) => address land 0x7ff
   };
 };
-
-let nt_offset = nt_index => 0x2000 + nt_index * 0x400;
+let palette_mirror = addr =>
+  addr > 0x3f0f && addr mod 4 == 0 ? (addr - 16) land 0x1f : addr land 0x1f;
 
 let read_vram = (ppu, address) =>
   if (address < 0x2000) {
@@ -91,7 +92,8 @@ let read_vram = (ppu, address) =>
     let mirrored_addr = nt_mirror(ppu, address);
     ppu.name_table[mirrored_addr];
   } else {
-    ppu.palette_table[address land 0x1f];
+    let mirrored_addr = palette_mirror(address);
+    ppu.palette_table[mirrored_addr];
   };
 
 let write_vram = (ppu, value) => {
@@ -102,7 +104,8 @@ let write_vram = (ppu, value) => {
     let mirrored_addr = nt_mirror(ppu, address);
     ppu.name_table[mirrored_addr] = value;
   } else {
-    ppu.palette_table[address land 0x1f] = value;
+    let mirrored_addr = palette_mirror(address);
+    ppu.palette_table[mirrored_addr] = value;
   };
   ppu.registers.ppu_address = address + vram_step(ppu.registers);
 };
