@@ -127,7 +127,7 @@ let color_palette =
 let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let context = {
     scanline: 0,
-    sprites: [],
+    sprites: Array.make(8, None),
     scroll: ScrollInfo.build(ppu),
     cache: Pattern.Table.load(rom.chr),
     frame: Array.make(width * height * 3, 0),
@@ -185,10 +185,15 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
 
   let sprite_pixel = x => {
     // TODO: Does on_tile find the first sprite that overlaps this _pixel_?
-    switch (List.find(Sprite.Tile.on_tile(x), context.sprites)) {
-    | Some(item) => sprite_color(item, x)
+    let matcher = (acc, item) =>
+      switch (acc, item) {
+      | (Some(_s), _) => acc
+      | (None, Some(s)) => Sprite.Tile.on_tile(x, s) ? item : None
+      | (None, None) => None
+      };
+    switch (Array.fold_left(matcher, None, context.sprites)) {
+    | Some(s) => sprite_color(s, x)
     | None => 0
-    | exception Not_found => 0
     };
   };
 

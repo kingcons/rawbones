@@ -22,15 +22,12 @@ module Tile = {
     y_distance >= 0 && y_distance < 8;
   };
 
-  let on_tile = (tile_x, sprite) =>
-    switch (sprite) {
-    | None => false
-    | Some(s) => s.x_position <= tile_x && tile_x < s.x_position + 8
-    };
+  let on_tile = (tile_x, sprite: t) =>
+    sprite.x_position <= tile_x && tile_x < sprite.x_position + 8;
 };
 
 module Table = {
-  type t = list(option(Tile.t));
+  type t = array(option(Tile.t));
 
   let build = (oam, scanline): t => {
     let sprites = Array.make(8, None);
@@ -44,6 +41,6 @@ module Table = {
         };
       };
     };
-    Array.to_list(sprites);
+    sprites;
   };
 };
