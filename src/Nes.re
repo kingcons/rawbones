@@ -48,7 +48,7 @@ let dma = (nes, ~on_frame) => {
   nes.cpu.memory.dma = false;
 };
 
-let step = (nes: t, ~on_frame: Render.frame => unit) => {
+let step = (~on_frame=_ => (), nes: t) => {
   Cpu.step(nes.cpu);
 
   if (nes.cpu.memory.dma) {
