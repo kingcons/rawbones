@@ -74,7 +74,7 @@ let step_cc =
   go();
 };
 
-let step_frame = (nes: t, ~on_frame: Render.frame => unit) => {
+let step_frame = (~on_frame=_ => (), nes: t) => {
   let frame = ref(None);
   let continue = _ =>
     switch (frame^) {
