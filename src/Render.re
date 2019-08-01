@@ -192,18 +192,19 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
       | (None, None) => None
       };
     switch (Array.fold_left(matcher, None, context.sprites)) {
-    | Some(s) => sprite_color(s, x)
-    | None => 0
+    | Some(s) => (sprite_color(s, x), Sprite.Tile.behind(s))
+    | None => (0, false)
     };
   };
 
   let pixel_priority = (backdrop, bg_color, sprite_color) => {
-    // TODO: Sprite Priority!
-    switch (bg_color > 0, sprite_color > 0) {
-    | (true, true) => sprite_color
-    | (true, false) => bg_color
-    | (false, true) => sprite_color
-    | (false, false) => backdrop
+    let (sp_color, sp_layer) = sprite_color;
+    switch (bg_color > 0, sp_color > 0, sp_layer) {
+    | (true, true, true) => bg_color
+    | (true, true, false) => sp_color
+    | (true, false, _) => bg_color
+    | (false, true, _) => sp_color
+    | (false, false, _) => backdrop
     };
   };
 

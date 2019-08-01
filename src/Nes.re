@@ -2,6 +2,7 @@ type t = {
   cpu: Cpu.t,
   ppu: Ppu.t,
   rom: Rom.t,
+  gamepad: Gamepad.t,
   render: (~on_frame: Render.frame => unit) => unit,
   mutable frame: Render.frame,
 };
@@ -12,14 +13,14 @@ type result('a) =
 
 let load = (rom: Rom.t): t => {
   let memory = Memory.build(rom);
-
+  let gamepad = memory.gamepad;
   let cpu = Cpu.build(memory);
   Cpu.reset(cpu);
 
   let ppu = memory.ppu;
   let render = Render.make(ppu, rom, ~on_nmi=() => Cpu.nmi(cpu));
 
-  {cpu, ppu, rom, render, frame: [||]};
+  {cpu, ppu, rom, gamepad, render, frame: [||]};
 };
 
 /*
