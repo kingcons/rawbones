@@ -15,7 +15,12 @@ module Tile = {
     };
   };
 
-  let behind = sprite => Util.read_bit(sprite.attributes, 5);
+  let behind = attr_byte => Util.read_bit(attr_byte, 5);
+  let flip_hori = attr_byte => Util.read_bit(attr_byte, 6);
+  let flip_vert = attr_byte => Util.read_bit(attr_byte, 7);
+  let high_bits = sprite => sprite.attributes land 0x3;
+  let line_bits = (sprite, tile, line) =>
+    Util.read_bit(sprite.attributes, 7) ? tile[7 - line] : tile[line];
 
   let on_line = (scanline, top_of_sprite) => {
     let y_distance = scanline - top_of_sprite;
