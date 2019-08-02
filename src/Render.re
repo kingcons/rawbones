@@ -88,6 +88,7 @@ type sprite = {
   line_bits: array(int),
   attributes: int,
   x_position: int,
+  zero: bool,
 };
 
 type background = {
@@ -131,6 +132,7 @@ let empty_sprite = {
   line_bits: [||],
   attributes: 0,
   x_position: 0,
+  zero: false,
 };
 
 let color_palette =
@@ -180,8 +182,9 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   };
 
   let find_sprite = (x, i): option(sprite) => {
-    // TODO: This code doesn't handle two sprites on the same tile.
-    // Handling that would require recomputing sprite per pixel, x * 8 + i
+    // TODO: We can save a lot of computation if we don't recompute sprites _per pixel_.
+    // However, we can't just assume only one sprite falls on a given tile. I've also seen wild
+    // ass index out of bounds bugs from skipping the index to on_tile. Let's think hard on this.
     let matcher = (acc, item) =>
       switch (acc, item) {
       | (Some(_s), _) => acc
@@ -198,6 +201,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
         high_bits: Sprite.Tile.high_bits(sprite),
         attributes: sprite.attributes,
         x_position: sprite.x_position,
+        zero: sprite.zero,
       });
     | None => None
     };
@@ -213,24 +217,28 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     Sprite(sprite.high_bits lsl 2 lor sprite.line_bits[index]);
   };
 
-  let sprite_match = (sprite, i): (sprite, bool, bool) => {
+  let sprite_match = (sprite, i): option(sprite) => {
     switch (sprite) {
     | Some(s) =>
       let sprite_x = context.scroll.coarse_x * 8 + i - s.x_position;
       let index =
         Sprite.Tile.flip_hori(s.attributes) ? 7 - sprite_x : sprite_x;
-      (s, s.line_bits[index] > 0, Sprite.Tile.behind(s.attributes));
-    | None => (empty_sprite, false, false)
+      s.line_bits[index] > 0 ? Some(s) : None;
+    | None => None
     };
   };
 
   let pixel_priority = (background, sprite, i): pixel_type => {
-    let bg_pixel = background.line_bits[i];
-    switch (bg_pixel > 0, sprite_match(sprite, i)) {
-    | (true, (_spr, true, true)) => background_color(background, i)
-    | (true, (spr, true, false)) => sprite_color(spr, i)
-    | (false, (spr, true, _)) => sprite_color(spr, i)
-    | (true, (_spr, false, _)) => background_color(background, i)
+    let bg_match = background.line_bits[i] > 0;
+    switch (bg_match, sprite_match(sprite, i)) {
+    | (true, Some(s)) =>
+      if (s.zero) {
+        Ppu.set_sprite_zero_hit(ppu.registers, true);
+      };
+      let behind = Sprite.Tile.behind(s.attributes);
+      behind ? background_color(background, i) : sprite_color(s, i);
+    | (false, Some(s)) => sprite_color(s, i)
+    | (true, None) => background_color(background, i)
     | _ => Backdrop
     };
   };
@@ -256,7 +264,6 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
 
   let render_scanline = () => {
     if (Ppu.rendering_enabled(ppu)) {
-      // TODO: Check for sprite zero hit.
       context.sprites = Sprite.Table.build(ppu.oam, context.scanline);
       for (_ in 0 to 31) {
         render_tile();
@@ -276,6 +283,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     if (Ppu.rendering_enabled(ppu)) {
       ppu.registers.ppu_address = ppu.registers.buffer;
     };
+    Ppu.set_sprite_zero_hit(ppu.registers, false);
     Ppu.set_vblank(ppu.registers, false);
     context.scroll = ScrollInfo.build(ppu);
     context.frame;

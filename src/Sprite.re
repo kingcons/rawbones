@@ -3,7 +3,8 @@ module Tile = {
     x_position: int, // byte 3
     y_position: int, // byte 0
     tile_index: int, // byte 1
-    attributes: int // byte 2
+    attributes: int, // byte 2
+    zero: bool,
   };
 
   let make = (oam, start) => {
@@ -12,6 +13,7 @@ module Tile = {
       y_position: oam[start + 0],
       tile_index: oam[start + 1],
       attributes: oam[start + 2],
+      zero: start == 0,
     };
   };
 
