@@ -155,13 +155,13 @@ let write_scroll = (ppu: t, value) => {
 };
 
 let write_address = (ppu: t, value) => {
-  let {registers as regs} = ppu;
+  let regs = ppu.registers;
   if (regs.write_latch) {
-    regs.buffer = registers.buffer lor value;
+    regs.buffer = regs.buffer lor value;
     regs.ppu_address = regs.buffer;
     regs.write_latch = false;
   } else {
-    registers.buffer = value lsl 8 land 0x7fff;
+    regs.buffer = value lsl 8 land 0x7fff;
     regs.write_latch = true;
   };
 };

@@ -26,7 +26,7 @@ describe("Render", () => {
         fine_x: 0,
         fine_y: 0b000,
       };
-      Render.ScrollInfo.next_tile(scroll);
+      Render.ScrollInfo.next_tile(scroll, Rom.Horizontal);
       expect(scroll) |> toEqual(result);
     });
 
@@ -39,7 +39,21 @@ describe("Render", () => {
         fine_x: 0,
         fine_y: 0b000,
       };
-      Render.ScrollInfo.next_tile(scroll);
+      Render.ScrollInfo.next_tile(scroll, Rom.Horizontal);
+      expect(scroll) |> toEqual(result);
+    });
+
+    test(
+      "next_tile wraps to the next horizontal nametable based on mirroring", () => {
+      let scroll = Render.ScrollInfo.from_registers(0b0000000011111, 0, 0);
+      let result: Render.ScrollInfo.t = {
+        nt_index: 0b10,
+        coarse_x: 0b00000,
+        coarse_y: 0b00000,
+        fine_x: 0,
+        fine_y: 0b000,
+      };
+      Render.ScrollInfo.next_tile(scroll, Rom.Vertical);
       expect(scroll) |> toEqual(result);
     });
 
@@ -52,7 +66,7 @@ describe("Render", () => {
         fine_x: 0,
         fine_y: 0b111,
       };
-      Render.ScrollInfo.next_scanline(scroll);
+      Render.ScrollInfo.next_scanline(scroll, Rom.Horizontal);
       expect(scroll) |> toEqual(result);
     });
 
@@ -65,7 +79,7 @@ describe("Render", () => {
         fine_x: 0,
         fine_y: 0b000,
       };
-      Render.ScrollInfo.next_scanline(scroll);
+      Render.ScrollInfo.next_scanline(scroll, Rom.Horizontal);
       expect(scroll) |> toEqual(result);
     });
 
@@ -78,7 +92,7 @@ describe("Render", () => {
         fine_x: 0,
         fine_y: 0b000,
       };
-      Render.ScrollInfo.next_scanline(scroll);
+      Render.ScrollInfo.next_scanline(scroll, Rom.Horizontal);
       expect(scroll) |> toEqual(result);
     });
   });

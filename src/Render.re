@@ -28,6 +28,10 @@ module ScrollInfo = {
     mutable fine_y: int,
   };
 
+  type nametable =
+    | Horizontal
+    | Vertical;
+
   let from_registers = (base, control, fine_x): t => {
     nt_index: control land 0x3,
     coarse_x: base land 0x1f,
@@ -44,20 +48,29 @@ module ScrollInfo = {
     );
   };
 
-  let next_tile = scroll =>
+  let next_nametable = (mirroring, kind, index) => {
+    switch (mirroring, kind) {
+    | (Rom.Horizontal, Horizontal) => index lxor 1
+    | (Rom.Horizontal, Vertical) => index lxor 2
+    | (Rom.Vertical, Horizontal) => index lxor 2
+    | (Rom.Vertical, Vertical) => index lxor 1
+    };
+  };
+
+  let next_tile = (scroll, mirror) =>
     if (scroll.coarse_x == 31) {
       scroll.coarse_x = 0;
-      scroll.nt_index = scroll.nt_index lxor 1;
+      scroll.nt_index = next_nametable(mirror, Horizontal, scroll.nt_index);
     } else {
       scroll.coarse_x = scroll.coarse_x + 1;
     };
 
-  let next_scanline = scroll =>
+  let next_scanline = (scroll, mirror) =>
     switch (scroll.fine_y == 7, scroll.coarse_y == 29) {
     | (true, true) =>
       scroll.fine_y = 0;
       scroll.coarse_y = 0;
-      scroll.nt_index = scroll.nt_index lxor 2;
+      scroll.nt_index = next_nametable(mirror, Vertical, scroll.nt_index);
     | (true, _) =>
       scroll.fine_y = 0;
       scroll.coarse_y = scroll.coarse_y + 1;
@@ -259,7 +272,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
         };
       draw(color, i);
     };
-    ScrollInfo.next_tile(context.scroll);
+    ScrollInfo.next_tile(context.scroll, (ppu.pattern_table)#mirroring);
   };
 
   let render_scanline = () => {
@@ -269,7 +282,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
         render_tile();
       };
     };
-    ScrollInfo.next_scanline(context.scroll);
+    ScrollInfo.next_scanline(context.scroll, (ppu.pattern_table)#mirroring);
   };
 
   let start_vblank = () => {
