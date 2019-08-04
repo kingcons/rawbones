@@ -21,10 +21,10 @@ module Tile = {
 
   let high_bits = (at_byte, quadrant: Types.quadrant) => {
     switch (quadrant) {
-    | BottomLeft => at_byte lsr 0 land 3
-    | BottomRight => at_byte lsr 2 land 3
-    | TopLeft => at_byte lsr 4 land 3
-    | TopRight => at_byte lsr 6 land 3
+    | TopLeft => at_byte lsr 0 land 3
+    | TopRight => at_byte lsr 2 land 3
+    | BottomLeft => at_byte lsr 4 land 3
+    | BottomRight => at_byte lsr 6 land 3
     };
   };
 
