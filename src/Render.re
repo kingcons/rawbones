@@ -78,11 +78,11 @@ module ScrollInfo = {
     };
 
   let quad_position = (scroll: t): Types.quadrant =>
-    switch (scroll.coarse_x mod 2, scroll.coarse_y mod 2) {
+    switch (scroll.coarse_x / 2 mod 2, scroll.coarse_y / 2 mod 2) {
     | (0, 0) => TopLeft
-    | (0, 1) => TopRight
-    | (1, 0) => BottomLeft
-    | _ => BottomRight
+    | (0, 1) => BottomLeft
+    | (1, 0) => TopRight
+    | (1, 1) => BottomRight
     };
 };
 
