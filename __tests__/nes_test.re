@@ -8,10 +8,10 @@ describe("NES", () => {
   describe("step_frame", () => {
     let nes = load("nestest");
 
-    ignore(Nes.step_frame(nes, _frame => ()));
-    ignore(Nes.step_frame(nes, _frame => ()));
-    ignore(Nes.step_frame(nes, _frame => ()));
-    ignore(Nes.step_frame(nes, _frame => ()));
+    ignore(Nes.step_frame(nes));
+    ignore(Nes.step_frame(nes));
+    ignore(Nes.step_frame(nes));
+    ignore(Nes.step_frame(nes));
 
     // test("produces a frame", ()
     //   // TODO: actually render

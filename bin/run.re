@@ -19,6 +19,6 @@ let write: (string, Render.frame) => unit = [%bs.raw
 |}
 ];
 
-for (tick in 0 to 9) {
-  Nes.step_frame(nes, ~on_frame=write({j|tmp/out.$tick.png|j}));
+for (_tick in 0 to 360) {
+  ignore(Nes.step_frame(nes, ~on_frame=result => nes.frame = result));
 };

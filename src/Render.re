@@ -28,6 +28,10 @@ module ScrollInfo = {
     mutable fine_y: int,
   };
 
+  type nametable =
+    | Horizontal
+    | Vertical;
+
   let from_registers = (base, control, fine_x): t => {
     nt_index: control land 0x3,
     coarse_x: base land 0x1f,
@@ -44,38 +48,41 @@ module ScrollInfo = {
     );
   };
 
-  let next_tile = scroll =>
+  let next_nametable = (mirroring, kind, index) => {
+    switch (mirroring, kind) {
+    | (Rom.Horizontal, Horizontal) => index lxor 1
+    | (Rom.Horizontal, Vertical) => index lxor 2
+    | (Rom.Vertical, Horizontal) => index lxor 2
+    | (Rom.Vertical, Vertical) => index lxor 1
+    };
+  };
+
+  let next_tile = (scroll, mirror) =>
     if (scroll.coarse_x == 31) {
       scroll.coarse_x = 0;
-      scroll.nt_index = scroll.nt_index lxor 1;
+      scroll.nt_index = next_nametable(mirror, Horizontal, scroll.nt_index);
     } else {
       scroll.coarse_x = scroll.coarse_x + 1;
     };
 
-  let next_scanline = scroll =>
+  let next_scanline = (scroll, mirror) =>
     switch (scroll.fine_y == 7, scroll.coarse_y == 29) {
     | (true, true) =>
       scroll.fine_y = 0;
       scroll.coarse_y = 0;
-      scroll.nt_index = scroll.nt_index lxor 2;
+      scroll.nt_index = next_nametable(mirror, Vertical, scroll.nt_index);
     | (true, _) =>
       scroll.fine_y = 0;
       scroll.coarse_y = scroll.coarse_y + 1;
     | _ => scroll.fine_y = scroll.fine_y + 1
     };
 
-  type quad_position =
-    | TopLeft
-    | TopRight
-    | BottomLeft
-    | BottomRight;
-
-  let quadrant = (scroll: t): quad_position =>
-    switch (scroll.coarse_x mod 2, scroll.coarse_y mod 2) {
+  let quad_position = (scroll: t): Types.quadrant =>
+    switch (scroll.coarse_x / 2 mod 2, scroll.coarse_y / 2 mod 2) {
     | (0, 0) => TopLeft
-    | (0, 1) => TopRight
-    | (1, 0) => BottomLeft
-    | _ => BottomRight
+    | (0, 1) => BottomLeft
+    | (1, 0) => TopRight
+    | (1, 1) => BottomRight
     };
 };
 
@@ -83,10 +90,29 @@ type frame = array(int);
 
 type t = {
   mutable scanline: int,
+  mutable sprites: Sprite.Table.t,
   mutable scroll: ScrollInfo.t,
   mutable cache: Pattern.Table.t,
   mutable frame,
 };
+
+type sprite = {
+  high_bits: int,
+  line_bits: array(int),
+  attributes: int,
+  x_position: int,
+  zero: bool,
+};
+
+type background = {
+  high_bits: int,
+  line_bits: array(int),
+};
+
+type pixel_type =
+  | Backdrop
+  | Background(int)
+  | Sprite(int);
 
 let width = 256;
 let height = 240;
@@ -114,6 +140,14 @@ f8 d8 78  d8 f8 78  b8 f8 b8  b8 f8 d8
 00 fc fc  f8 d8 f8  00 00 00  00 00 00
 |j};
 
+let empty_sprite = {
+  high_bits: 0,
+  line_bits: [||],
+  attributes: 0,
+  x_position: 0,
+  zero: false,
+};
+
 let color_palette =
   String.trim(color_palette_data)
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
@@ -122,20 +156,13 @@ let color_palette =
 let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let context = {
     scanline: 0,
+    sprites: Array.make(8, None),
     scroll: ScrollInfo.build(ppu),
     cache: Pattern.Table.load(rom.chr),
     frame: Array.make(width * height * 3, 0),
   };
 
-  let palette_high_bits = at_byte =>
-    switch (ScrollInfo.quadrant(context.scroll)) {
-    | BottomLeft => at_byte lsr 0 land 3
-    | BottomRight => at_byte lsr 2 land 3
-    | TopLeft => at_byte lsr 4 land 3
-    | TopRight => at_byte lsr 6 land 3
-    };
-
-  let render_pixel = (color_index, pixel) => {
+  let draw = (color_index, pixel) => {
     let frame_offset =
       (context.scanline * 256 + context.scroll.coarse_x * 8) * 3;
     for (i in 0 to 2) {
@@ -145,35 +172,117 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     };
   };
 
+  let find_bg_tile = (x, y) => {
+    let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
+    let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
+    let pattern_index = Ppu.background_offset(ppu) + nt;
+    context.cache[pattern_index];
+  };
+
+  let find_attr = (x, y) => {
+    let at_offset = Ppu.nt_offset(context.scroll.nt_index) + 0x3c0;
+    Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
+  };
+
+  let find_background = (x, y) => {
+    let pattern = find_bg_tile(x, y);
+    let at_byte = find_attr(x, y);
+    let quad = ScrollInfo.quad_position(context.scroll);
+    {
+      high_bits: Pattern.Tile.high_bits(at_byte, quad),
+      line_bits: pattern[context.scroll.fine_y],
+    };
+  };
+
+  let find_sprite = (x, i): option(sprite) => {
+    // TODO: We can save a lot of computation if we don't recompute sprites _per pixel_.
+    // However, we can't just assume only one sprite falls on a given tile. I've also seen wild
+    // ass index out of bounds bugs from skipping the index to on_tile. Let's think hard on this.
+    let matcher = (acc, item) =>
+      switch (acc, item) {
+      | (Some(_s), _) => acc
+      | (None, Some(s)) => Sprite.Tile.on_tile(x * 8 + i, s) ? item : None
+      | (None, None) => None
+      };
+    let sprite = Array.fold_left(matcher, None, context.sprites);
+    switch (sprite) {
+    | Some(sprite) =>
+      let tile = context.cache[Ppu.sprite_offset(ppu) + sprite.tile_index];
+      let line = context.scanline - sprite.y_position;
+      Some({
+        line_bits: Sprite.Tile.line_bits(sprite, tile, line),
+        high_bits: Sprite.Tile.high_bits(sprite),
+        attributes: sprite.attributes,
+        x_position: sprite.x_position,
+        zero: sprite.zero,
+      });
+    | None => None
+    };
+  };
+
+  let background_color = (background, i) =>
+    Background(background.high_bits lsl 2 lor background.line_bits[i]);
+
+  let sprite_color = (sprite, i) => {
+    let x_position = context.scroll.coarse_x * 8 + i - sprite.x_position;
+    let index =
+      Sprite.Tile.flip_hori(sprite.attributes) ? 7 - x_position : x_position;
+    Sprite(sprite.high_bits lsl 2 lor sprite.line_bits[index]);
+  };
+
+  let sprite_match = (sprite, i): option(sprite) => {
+    switch (sprite) {
+    | Some(s) =>
+      let sprite_x = context.scroll.coarse_x * 8 + i - s.x_position;
+      let index =
+        Sprite.Tile.flip_hori(s.attributes) ? 7 - sprite_x : sprite_x;
+      s.line_bits[index] > 0 ? Some(s) : None;
+    | None => None
+    };
+  };
+
+  let pixel_priority = (background, sprite, i): pixel_type => {
+    let bg_match = background.line_bits[i] > 0;
+    switch (bg_match, sprite_match(sprite, i)) {
+    | (true, Some(s)) =>
+      if (s.zero) {
+        Ppu.set_sprite_zero_hit(ppu.registers, true);
+      };
+      let behind = Sprite.Tile.behind(s.attributes);
+      behind ? background_color(background, i) : sprite_color(s, i);
+    | (false, Some(s)) => sprite_color(s, i)
+    | (true, None) => background_color(background, i)
+    | _ => Backdrop
+    };
+  };
+
   let render_tile = () => {
-    // TODO: Factor this to allow for rendering sprites too?
     let x = context.scroll.coarse_x;
     let y = context.scroll.coarse_y;
-    let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
-    let at_offset = nt_offset + 0x3c0;
-    let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
-    let at = Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
-    let tile_index = Ppu.background_offset(ppu) + nt;
-    let high_bits = palette_high_bits(at);
-    let tile = context.cache[tile_index];
-    let scanline_low_bits = tile[context.scroll.fine_y];
-    // Check PPU scrolling docs. One of fine_y or fine_x does not change during rendering. Which one?
+    let background = find_background(x, y);
+    let backdrop = Ppu.read_vram(ppu, 0x3f00);
     for (i in 0 to 7) {
-      let palette_index = high_bits lsl 2 lor scanline_low_bits[i];
-      let color_index = Ppu.read_vram(ppu, 0x3f00 + palette_index);
-      render_pixel(color_index, i);
+      let sprite = find_sprite(x, i);
+      let pixel_type = pixel_priority(background, sprite, i);
+      let color =
+        switch (pixel_type) {
+        | Backdrop => backdrop
+        | Background(index) => Ppu.read_vram(ppu, 0x3f00 + index)
+        | Sprite(index) => Ppu.read_vram(ppu, 0x3f10 + index)
+        };
+      draw(color, i);
     };
-
-    ScrollInfo.next_tile(context.scroll);
+    ScrollInfo.next_tile(context.scroll, (ppu.pattern_table)#mirroring);
   };
 
   let render_scanline = () => {
     if (Ppu.rendering_enabled(ppu)) {
+      context.sprites = Sprite.Table.build(ppu.oam, context.scanline);
       for (_ in 0 to 31) {
         render_tile();
       };
     };
-    ScrollInfo.next_scanline(context.scroll);
+    ScrollInfo.next_scanline(context.scroll, (ppu.pattern_table)#mirroring);
   };
 
   let start_vblank = () => {
@@ -187,6 +296,7 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     if (Ppu.rendering_enabled(ppu)) {
       ppu.registers.ppu_address = ppu.registers.buffer;
     };
+    Ppu.set_sprite_zero_hit(ppu.registers, false);
     Ppu.set_vblank(ppu.registers, false);
     context.scroll = ScrollInfo.build(ppu);
     context.frame;

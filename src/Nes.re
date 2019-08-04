@@ -2,6 +2,7 @@ type t = {
   cpu: Cpu.t,
   ppu: Ppu.t,
   rom: Rom.t,
+  gamepad: Gamepad.t,
   render: (~on_frame: Render.frame => unit) => unit,
   mutable frame: Render.frame,
 };
@@ -12,14 +13,14 @@ type result('a) =
 
 let load = (rom: Rom.t): t => {
   let memory = Memory.build(rom);
-
+  let gamepad = memory.gamepad;
   let cpu = Cpu.build(memory);
   Cpu.reset(cpu);
 
   let ppu = memory.ppu;
   let render = Render.make(ppu, rom, ~on_nmi=() => Cpu.nmi(cpu));
 
-  {cpu, ppu, rom, render, frame: [||]};
+  {cpu, ppu, rom, gamepad, render, frame: [||]};
 };
 
 /*
@@ -48,7 +49,7 @@ let dma = (nes, ~on_frame) => {
   nes.cpu.memory.dma = false;
 };
 
-let step = (nes: t, ~on_frame: Render.frame => unit) => {
+let step = (~on_frame=_ => (), nes: t) => {
   Cpu.step(nes.cpu);
 
   if (nes.cpu.memory.dma) {
@@ -74,7 +75,7 @@ let step_cc =
   go();
 };
 
-let step_frame = (nes: t, ~on_frame: Render.frame => unit) => {
+let step_frame = (~on_frame=_ => (), nes: t) => {
   let frame = ref(None);
   let continue = _ =>
     switch (frame^) {

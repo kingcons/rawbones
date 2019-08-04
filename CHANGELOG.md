@@ -4,6 +4,15 @@ Change types:
 * Optimization
 * Bugfix
 
+## Changes for 0.3.0 (08/04/19):
+
+* New Feature: The renderer now supports sprite rendering! 🔥🔥🔥
+* Enhancement: Nes.t now has a field for accessing the gamepad.
+* Bugfix: The quadrant of the attribute byte is now detected correctly based on the scroll position.
+* Bugfix: Background palette high bits were pulled from the attribute byte incorrectly.
+* Bugfix: Scrolling switches nametables correctly based on the ROM mirroring.
+* Bugfix: The renderer mirrors palette reads to the backdrop correctly.
+
 ## Changes for 0.2.2 (07/24/19):
 
 * Enhancement: Nes.t now has a mutable field for storing the framebuffer.
