@@ -119,10 +119,11 @@ let read_status = ppu => {
 
 let read_ppu_data = ppu => {
   let address = ppu.registers.ppu_address;
+  let buffer = ppu.registers.ppu_data;
   let result = read_vram(ppu, address);
   ppu.registers.ppu_data = result;
   ppu.registers.ppu_address = address + vram_step(ppu.registers);
-  address < 0x3f00 ? ppu.registers.ppu_data : result;
+  address < 0x3f00 ? buffer : result;
 };
 
 let fetch = (ppu: t, address) =>

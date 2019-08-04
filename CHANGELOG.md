@@ -4,6 +4,10 @@ Change types:
 * Optimization
 * Bugfix
 
+## Changes for 0.3.1 (08/04/19):
+
+* Bugfix: A last minute change broke the buffering of reads from PPUDATA.
+
 ## Changes for 0.3.0 (08/04/19):
 
 * New Feature: The renderer now supports sprite rendering! 🔥🔥🔥
