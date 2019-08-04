@@ -1,6 +1,6 @@
 {
   "name": "rawbones",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "scripts": {
     "build": "bsb -make-world",
     "clean": "bsb -clean-world",
@@ -10,7 +10,8 @@
   },
   "keywords": [
     "BuckleScript",
-    "Reason"
+    "Reason",
+    "Emulation"
   ],
   "author": "",
   "license": "MIT",
