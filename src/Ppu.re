@@ -140,6 +140,12 @@ let fetch = (ppu: t, address) =>
   | _ => 0
   };
 
+let write_control = (ppu: t, value) => {
+  ppu.registers.control = value;
+  let nt_index = (value land 0x3) lsl 10;
+  ppu.registers.buffer = ppu.registers.buffer lor nt_index;
+};
+
 let write_oam = (ppu: t, value) => {
   let {oam_address} = ppu.registers;
   ppu.oam[oam_address] = value;
@@ -176,7 +182,7 @@ let write_address = (ppu: t, value) => {
 
 let store = (ppu: t, address, value) =>
   switch (address land 7) {
-  | 0 => ppu.registers.control = value
+  | 0 => write_control(ppu, value)
   | 1 => ppu.registers.mask = value
   | 3 => ppu.registers.oam_address = value
   | 4 => write_oam(ppu, value)

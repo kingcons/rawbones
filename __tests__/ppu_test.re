@@ -93,8 +93,10 @@ describe("PPU", () => {
 
   describe("store", () => {
     test("storing to PPUCTRL", () => {
-      Ppu.store(ppu, 0x2000, 0b10001010);
-      expect(regs.control) |> toEqual(0b10001010);
+      let value = 0b10001010;
+      Ppu.store(ppu, 0x2000, value);
+      let nt_index = ppu.registers.buffer lsr 10 land 0x3;
+      expect([regs.control, nt_index]) |> toEqual([value, 2]);
     });
 
     test("storing to PPUMASK", () => {
