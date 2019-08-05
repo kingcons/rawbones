@@ -87,7 +87,7 @@ module ScrollInfo = {
 };
 
 type frame = array(int);
-type sprite = (int, bool);
+type sprite = (int, bool, bool);
 
 type t = {
   mutable scanline: int,
@@ -138,7 +138,7 @@ let color_palette =
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
   |> Array.map(str => int_of_string("0x" ++ Util.default("00", str)));
 
-let empty_sprite = (0, false);
+let empty_sprite = (0, false, false);
 
 let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let context = {
@@ -184,8 +184,11 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let pixel_priority = (background, sprite, i): pixel_type => {
     let bg_pixel = background.line_bits[i];
     let background_color = background.high_bits lsl 2 lor bg_pixel;
-    let (sprite_color, behind) = sprite;
+    let (sprite_color, behind, sprite_zero) = sprite;
     let sp_pixel = sprite_color land 0x3;
+    if (sprite_zero) {
+      Ppu.check_zero_hit(ppu, sp_pixel, bg_pixel);
+    };
     switch (bg_pixel > 0, sp_pixel > 0, behind) {
     | (true, true, true) => Background(background_color)
     | (true, true, false) => Sprite(sprite_color)
@@ -200,12 +203,14 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     let tile = context.cache[Ppu.sprite_offset(ppu) + sprite.tile_index];
     let bits = Sprite.Tile.line_bits(sprite, tile, context.scanline);
     let high = Sprite.Tile.high_bits(sprite);
-    for (i in start to start + 7) {
-      if (i < 256 && fst(context.sprites[i]) == 0) {
+    for (i in start to min(start + 7, 255)) {
+      let (color, _, _) = context.sprites[i];
+      if (color == 0) {
         let column = i - start;
         let index = Sprite.Tile.flip_hori(sprite) ? 7 - column : column;
         let color = high lsl 2 lor bits[index];
-        context.sprites[i] = (color, Sprite.Tile.behind(sprite));
+        let behind = Sprite.Tile.behind(sprite);
+        context.sprites[i] = (color, behind, sprite.zero);
       };
     };
   };
@@ -249,7 +254,6 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
       for (_ in 0 to 31) {
         render_tile();
       };
-      // TODO: Handle sprite zero hit here?
     };
     ScrollInfo.next_scanline(context.scroll, (ppu.pattern_table)#mirroring);
   };
@@ -264,8 +268,8 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
   let finish_vblank = () => {
     if (Ppu.rendering_enabled(ppu)) {
       ppu.registers.ppu_address = ppu.registers.buffer;
+      Ppu.set_sprite_zero_hit(ppu.registers, false);
     };
-    Ppu.set_sprite_zero_hit(ppu.registers, false);
     Ppu.set_vblank(ppu.registers, false);
     context.scroll = ScrollInfo.build(ppu);
     context.frame;

@@ -71,6 +71,13 @@ let set_sprite_zero_hit = status_helper(6);
 let set_vblank = status_helper(7);
 let rendering_enabled = ppu =>
   show_background(ppu.registers) || show_sprites(ppu.registers);
+let sprite_zero_enabled = ppu =>
+  show_background(ppu.registers) && show_sprites(ppu.registers);
+
+let check_zero_hit = (ppu, sp_pixel, bg_pixel) =>
+  if (sprite_zero_enabled(ppu) && sp_pixel > 0 && bg_pixel > 0) {
+    set_sprite_zero_hit(ppu.registers, true);
+  };
 
 let nt_offset = nt_index => 0x2000 + nt_index * 0x400;
 let nt_mirror = (ppu, address) => {
