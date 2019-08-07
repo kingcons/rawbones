@@ -4,6 +4,11 @@ Change types:
 * Optimization
 * Bugfix
 
+## Changes for 0.3.2 (08/07/19):
+
+* Enhancement: Reimplement the sprite renderer, cutting runtime in half due to reduced allocation and other factors.
+* Bugfix: Writes to the PPU ctrl register now update the nametable in the buffer register appropriately.
+
 ## Changes for 0.3.1 (08/04/19):
 
 * Bugfix: A last minute change broke the buffering of reads from PPUDATA.
