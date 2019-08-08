@@ -3,13 +3,13 @@
 Rawbones is an early-stage NES emulator written in ReasonML and compiled to JS.
 It currently powers [epiderNES](https://kingcons.io/epiderNES), [source here][epi].
 
-It is inspired by long standing beliefs about the power of computers for kinesthetic learning. See: [Research Goals](https://blog.kingcons.io/posts/Research-Goals.html)
+It is inspired by long standing beliefs about the power of computers for kinesthetic learning. See: [Research Goals][goals].
 
+There is a guide to rawbones intended for developers exploring the project. It can be found [here][docs]. Feedback and pull requests are welcome!
+
+[docs]: https://github.com/kingcons/rawbones/blob/master/OVERVIEW.md
 [epi]: https://github.com/jamesdabbs/epiderNES
-
-## Technical Documentation
-
-There is a guide to rawbones intended for developers exploring the project. It is [here](https://github.com/kingcons/rawbones/tree/blob/master/OVERVIEW.md). Feedback and pull requests are welcome!
+[goals]: https://blog.kingcons.io/posts/Research-Goals.html
 
 ## Why another emulator?
 
