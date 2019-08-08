@@ -30,6 +30,7 @@ Writing an emulator isn't very interesting if you can't run instructions! Once t
   1. We check the CPU's program counter to see where it points to in memory. That's the address of the next instruction so we read it from memory. Afterwards, we advance the program counter so it is pointing at either arguments to the instruction kept adjacent in memory _or_ the following instruction. (see: `cpu.re`, lines 418-419)
 
   2. We use an `InstructionTable` to look up the instruction. The InstructionTable maps bytes to functions that implement the instruction. Instructions are just single bytes and not all 256 bytes correspond to a valid command. If the instruction is invalid, we throw an `OpcodeNotFound` exception here. Otherwise, we call the found function passing it the CPU. (see: `cpu.re`, lines 421-424)
+
     * Note: The InstructionTable is built from a JSON encoding of the instruction set for the 6502, in our source tree at `src/instructions.json`.
 
   3. All functions in the InstructionTable are closures over the opcode byte and instruction metadata that take a CPU and then run `handle`. You can see how we add these closures to the InstructionTable in `cpu.re`, lines 402-405. At a high level,
