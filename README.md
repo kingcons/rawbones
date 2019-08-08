@@ -7,6 +7,10 @@ It is inspired by long standing beliefs about the power of computers for kinesth
 
 [epi]: https://github.com/jamesdabbs/epiderNES
 
+## Technical Documentation
+
+There is a guide to rawbones intended for developers exploring the project. It is [here](https://github.com/kingcons/rawbones/tree/blob/master/OVERVIEW.md). Feedback and pull requests are welcome!
+
 ## Why another emulator?
 
 <blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Reading things teaches people how to write. Analogous, if we are to place programming at the same fundamental level, using a program should teach how it works. But we don&#39;t see this.</p>&mdash; Tony Garnock-Jones (@leastfixedpoint) <a href="https://twitter.com/leastfixedpoint/status/1026567416229314561?ref_src=twsrc%5Etfw">August 6, 2018</a></blockquote>
