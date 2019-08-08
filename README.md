@@ -1,17 +1,20 @@
 ## About
 
 Rawbones is an early-stage NES emulator written in ReasonML and compiled to JS.
-It currently powers [epiderNES](https://github.com/jamesdabbs/epiderNES).
+It currently powers [epiderNES](https://kingcons.io/epiderNES), [source here][epi].
+
+It is inspired by long standing beliefs about the power of computers for kinesthetic learning. See: [Research Goals](https://blog.kingcons.io/posts/Research-Goals.html)
+
+[epi]: https://github.com/jamesdabbs/epiderNES
 
 ## Why another emulator?
 
 <blockquote class="twitter-tweet" data-lang="en"><p lang="en" dir="ltr">Reading things teaches people how to write. Analogous, if we are to place programming at the same fundamental level, using a program should teach how it works. But we don&#39;t see this.</p>&mdash; Tony Garnock-Jones (@leastfixedpoint) <a href="https://twitter.com/leastfixedpoint/status/1026567416229314561?ref_src=twsrc%5Etfw">August 6, 2018</a></blockquote>
-<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
 Many NES emulators already exist, both on the web and the desktop. Our goal is to create
 a readable, tested, and compact code base sufficient for mostly accurate emulation of many but not all popular Nintendo titles.
 
-Rawbones exists to support curious programmers learning about how the system and its titles worked rather than purely being a vehicle for reliving childhood gaming experiences. To be effective though, it must be able to run the games first.
+Rawbones exists to support curious programmers learning about how the system and its titles worked rather than purely being a vehicle for reliving childhood gaming experiences. To be effective though, it must be able to run the games first. The codebase strives to be accessible for learning about emulation, sacrificing total accuracy and performance. The real product is not the code but epiderNES.
 
 Now that rawbones is reaching playable status, our focus will increasingly shift towards building out debugging and reverse engineering tools in epiderNES. In addition to the usual tools to disassemble memory, inspect machine registers, or view VRAM, we hope to add support for tracing the game and building a directed graph of blocks and jumps as it runs.
 
