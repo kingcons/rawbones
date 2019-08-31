@@ -54,10 +54,55 @@ let cnrom = (rom: Rom.t): t => {
   pub set_mirroring = style => mirroring := style
 };
 
+type mmc1_prg_mode =
+  | SwitchBoth
+  | SwitchHigh
+  | SwitchLow;
+type mmc1_chr_mode =
+  | Switch1
+  | Switch2;
+
+let mmc1 = (rom: Rom.t): t => {
+  val mirroring = ref(rom.mirroring);
+  val prg_bank = ref(0);
+  val chr_bank1 = ref(0);
+  val chr_bank2 = ref(0);
+  val write_count = ref(0);
+  val accumulator = ref(0);
+  val prg_mode = ref(SwitchBoth);
+  val chr_mode = ref(Switch1);
+  pub get_prg = address => aref(rom.prg, address land (rom.prg_size - 1));
+  pub set_prg = (address, value) => {
+    let bit = value land 1;
+    accumulator := accumulator^ + bit lsl write_count^;
+    write_count := write_count^ + 1;
+
+    if (write_count^ == 5) {
+      this#update(address);
+      write_count := 0;
+      accumulator := 0;
+    };
+  };
+  pub get_chr = address => aref(rom.chr, this#chr_addr(address));
+  pub set_chr = (address, byte) =>
+    set(rom.chr, this#chr_addr(address), byte);
+  pri chr_addr = offset => {
+    let bank = offset < 0x1000 ? chr_bank1^ : chr_bank2^;
+    bank * 0x1000 + offset land 0xfff;
+  };
+  pri update = address => {
+    // if address ...
+    chr_bank1 := accumulator^;
+  };
+  pub mirroring = mirroring^;
+  pub set_mirroring = style => mirroring := style
+};
+
 let for_rom = (rom: Rom.t): t =>
   switch (rom.mapper) {
   | NROM => nrom(rom)
   | UNROM => unrom(rom)
   | CNROM => cnrom(rom)
+  | MMC1 => mmc1(rom)
   | mapper => raise(MapperNotImplemented(mapper))
   };
