@@ -5,7 +5,7 @@ open Spec;
 let nestest = rom("nestest");
 
 describe("PPU", () => {
-  let ppu = Ppu.build(Mapper.for_rom(nestest));
+  let ppu = Ppu.build(Memory.mapper_for_rom(nestest));
   let regs = ppu.registers;
 
   describe("PPUCTRL", () => {
@@ -170,12 +170,12 @@ describe("PPU", () => {
   describe("nametable mirroring", () => {
     let ppu =
       Ppu.build(
-        Mapper.for_rom(nestest),
+        Memory.mapper_for_rom(nestest),
         ~name_table=Array.init(0x800, i => i),
       );
 
     test("horizontal mirroring", () => {
-      (ppu.pattern_table)#set_mirroring(Rom.Horizontal);
+      ppu.pattern_table.set_mirroring(Rom.Horizontal);
       let nt1 = Ppu.read_vram(ppu, 0x2042);
       let nt2 = Ppu.read_vram(ppu, 0x2442);
       let nt3 = Ppu.read_vram(ppu, 0x2842);
@@ -184,7 +184,7 @@ describe("PPU", () => {
     });
 
     test("vertical mirroring", () => {
-      (ppu.pattern_table)#set_mirroring(Rom.Vertical);
+      ppu.pattern_table.set_mirroring(Rom.Vertical);
       let nt1 = Ppu.read_vram(ppu, 0x2042);
       let nt2 = Ppu.read_vram(ppu, 0x2442);
       let nt3 = Ppu.read_vram(ppu, 0x2842);
