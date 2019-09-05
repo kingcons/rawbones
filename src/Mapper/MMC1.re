@@ -13,13 +13,18 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
   let chr_bank1 = ref(0);
   let write_count = ref(0);
   let accumulator = ref(0);
-  let prg_mode = ref(SwitchBoth);
+  let prg_mode = ref(SwitchLow);
   let chr_mode = ref(Switch1);
 
   let chr_addr = offset => {
     let bank = offset < 0x1000 ? chr_bank0^ : chr_bank1^;
     bank * 0x1000 + offset land 0xfff;
   };
+  let prg_addr = offset => {
+    let bank = offset < 0xC000 ? prg_bank^ : rom.prg_count - 1;
+    bank * 0x4000 + offset land 0x3fff;
+  };
+
   let update = address =>
     if (address < 0xa000) {
       mirroring :=
@@ -59,8 +64,7 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
       };
     };
 
-  let get_prg = address =>
-    Util.aref(rom.prg, address land (rom.prg_size - 1));
+  let get_prg = address => Util.aref(rom.prg, prg_addr(address));
   let set_prg = (address, value) => {
     let bit = value land 1;
     accumulator := accumulator^ + bit lsl write_count^;
