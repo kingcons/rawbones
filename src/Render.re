@@ -77,8 +77,8 @@ module ScrollInfo = {
     | _ => scroll.fine_y = scroll.fine_y + 1
     };
 
-  let quad_position = (scroll: t): Types.quadrant =>
-    switch (scroll.coarse_x / 2 mod 2, scroll.coarse_y / 2 mod 2) {
+  let quad_position = (coarse_x, coarse_y): Types.quadrant =>
+    switch (coarse_x / 2 mod 2, coarse_y / 2 mod 2) {
     | (0, 0) => TopLeft
     | (0, 1) => BottomLeft
     | (1, 0) => TopRight
@@ -164,22 +164,22 @@ module Context = {
     };
   };
 
-  let find_bg_tile = (context, x, y) => {
-    let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
+  let find_bg_tile = (context, nt_index, x, y) => {
+    let nt_offset = Ppu.nt_offset(nt_index);
     let nt = Ppu.read_vram(context.ppu, nt_offset + 32 * y + x);
     let pattern_index = Ppu.background_offset(context.ppu) + nt;
     context.cache[pattern_index];
   };
 
-  let find_attr = (context, x, y) => {
-    let at_offset = Ppu.nt_offset(context.scroll.nt_index) + 0x3c0;
+  let find_attr = (context, nt_index, x, y) => {
+    let at_offset = Ppu.nt_offset(nt_index) + 0x3c0;
     Ppu.read_vram(context.ppu, at_offset + (y / 4) lsl 3 + x / 4);
   };
 
-  let find_background = (context, x, y) => {
-    let pattern = find_bg_tile(context, x, y);
-    let at_byte = find_attr(context, x, y);
-    let quad = ScrollInfo.quad_position(context.scroll);
+  let find_background = (context, ~nt_index=context.scroll.nt_index, x, y) => {
+    let pattern = find_bg_tile(context, nt_index, x, y);
+    let at_byte = find_attr(context, nt_index, x, y);
+    let quad = ScrollInfo.quad_position(x, y);
     {
       high_bits: Pattern.Tile.high_bits(at_byte, quad),
       line_bits: pattern[context.scroll.fine_y],
@@ -233,6 +233,31 @@ module Context = {
     };
     let sprites = Sprite.Table.build(context.ppu.oam, context.scanline);
     Array.iter(sprite_match(context), sprites);
+  };
+
+  // NOTE: There's no reason we couldn't have a jump table that selects the pixel value
+  // based on the index. I.e. Compute the complete palette table at the beginning of every frame.
+  // Use that as part of the context and omit all VRAM reads to get color info.
+  // Could be a great rendering optimization but should profile to confirm.
+  let render_nametable = (context, nt_index): frame => {
+    let frame = Array.make(256 * 240 * 3, 0);
+    let backdrop = Ppu.read_vram(context.ppu, 0x3f00);
+    for (coarse_y in 0 to 29) {
+      for (coarse_x in 0 to 31) {
+        let bg = find_background(context, coarse_x, coarse_y, ~nt_index=nt_index);
+        for (fine_x in 0 to 7) {
+          let index = bg.line_bits[fine_x] > 0 ? bg.high_bits lsl 2 lor bg.line_bits[fine_x] : 0;
+          let color = index > 0 ? Ppu.read_vram(context.ppu, 0x3f00 + index) : backdrop;
+          let frame_offset = (coarse_y * 256 + coarse_x * 8) * 3;
+          for (i in 0 to 2) {
+            let byte = color_palette[color * 3 + i];
+            let pixel_offset = frame_offset + fine_x * 3 + i;
+            frame[pixel_offset] = byte;
+          };
+        }
+      }
+    }
+    frame;
   };
 
   let render_tile = context => {
