@@ -89,14 +89,6 @@ module ScrollInfo = {
 type frame = array(int);
 type sprite = (int, bool, bool);
 
-type t = {
-  mutable scanline: int,
-  mutable sprites: array(sprite),
-  mutable scroll: ScrollInfo.t,
-  mutable cache: Pattern.Table.t,
-  mutable frame,
-};
-
 type background = {
   high_bits: int,
   line_bits: array(int),
@@ -106,13 +98,6 @@ type pixel_type =
   | Backdrop
   | Background(int)
   | Sprite(int);
-
-let width = 256;
-let height = 240;
-
-// NOTE: One CPU cycle is 3 PPU cycles.
-let cycles_per_scanline = 341 / 3;
-let scanlines_per_frame = 262;
 
 let color_palette_data = {j|
 7c 7c 7c  00 00 fc  00 00 bc  44 28 bc
@@ -138,18 +123,38 @@ let color_palette =
   |> Js.String.splitByRe([%bs.re "/\\s+/g"])
   |> Array.map(str => int_of_string("0x" ++ Util.default("00", str)));
 
-let empty_sprite = (0, false, false);
+let width = 256;
+let height = 240;
 
-let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
-  let context = {
-    scanline: 0,
-    sprites: Array.make(256, empty_sprite),
-    scroll: ScrollInfo.build(ppu),
-    cache: Pattern.Table.load(rom.chr),
-    frame: Array.make(width * height * 3, 0),
+// NOTE: One CPU cycle is 3 PPU cycles.
+let cycles_per_scanline = 341 / 3;
+let scanlines_per_frame = 262;
+
+module Context = {
+  type t = {
+    mutable scanline: int,
+    mutable sprites: array(sprite),
+    mutable scroll: ScrollInfo.t,
+    mutable cache: Pattern.Table.t,
+    mutable frame,
+    on_nmi: unit => unit,
+    ppu: Ppu.t,
+  };
+  let empty_sprite = (0, false, false);
+
+  let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
+    {
+      scanline: 0,
+      sprites: Array.make(256, empty_sprite),
+      scroll: ScrollInfo.build(ppu),
+      cache: Pattern.Table.load(rom.chr),
+      frame: Array.make(width * height * 3, 0),
+      ppu,
+      on_nmi,
+    };
   };
 
-  let draw = (color_index, pixel) => {
+  let draw = (context, color_index, pixel) => {
     let frame_offset =
       (context.scanline * 256 + context.scroll.coarse_x * 8) * 3;
     for (i in 0 to 2) {
@@ -159,21 +164,21 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     };
   };
 
-  let find_bg_tile = (x, y) => {
+  let find_bg_tile = (context, x, y) => {
     let nt_offset = Ppu.nt_offset(context.scroll.nt_index);
-    let nt = Ppu.read_vram(ppu, nt_offset + 32 * y + x);
-    let pattern_index = Ppu.background_offset(ppu) + nt;
+    let nt = Ppu.read_vram(context.ppu, nt_offset + 32 * y + x);
+    let pattern_index = Ppu.background_offset(context.ppu) + nt;
     context.cache[pattern_index];
   };
 
-  let find_attr = (x, y) => {
+  let find_attr = (context, x, y) => {
     let at_offset = Ppu.nt_offset(context.scroll.nt_index) + 0x3c0;
-    Ppu.read_vram(ppu, at_offset + (y / 4) lsl 3 + x / 4);
+    Ppu.read_vram(context.ppu, at_offset + (y / 4) lsl 3 + x / 4);
   };
 
-  let find_background = (x, y) => {
-    let pattern = find_bg_tile(x, y);
-    let at_byte = find_attr(x, y);
+  let find_background = (context, x, y) => {
+    let pattern = find_bg_tile(context, x, y);
+    let at_byte = find_attr(context, x, y);
     let quad = ScrollInfo.quad_position(context.scroll);
     {
       high_bits: Pattern.Tile.high_bits(at_byte, quad),
@@ -181,13 +186,13 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     };
   };
 
-  let pixel_priority = (background, sprite, i): pixel_type => {
+  let pixel_priority = (context, background, sprite, i): pixel_type => {
     let bg_pixel = background.line_bits[i];
     let background_color = background.high_bits lsl 2 lor bg_pixel;
     let (sprite_color, behind, sprite_zero) = sprite;
     let sp_pixel = sprite_color land 0x3;
     if (sprite_zero) {
-      Ppu.check_zero_hit(ppu, sp_pixel, bg_pixel);
+      Ppu.check_zero_hit(context.ppu, sp_pixel, bg_pixel);
     };
     switch (bg_pixel > 0, sp_pixel > 0, behind) {
     | (true, true, true) => Background(background_color)
@@ -198,9 +203,10 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     };
   };
 
-  let render_sprite_line = (sprite: Sprite.Tile.t) => {
+  let render_sprite_line = (context, sprite: Sprite.Tile.t) => {
     let start = sprite.x_position;
-    let tile = context.cache[Ppu.sprite_offset(ppu) + sprite.tile_index];
+    let tile = context.cache[Ppu.sprite_offset(context.ppu)
+                             + sprite.tile_index];
     let bits = Sprite.Tile.line_bits(sprite, tile, context.scanline);
     let high = Sprite.Tile.high_bits(sprite);
     for (i in start to min(start + 7, 255)) {
@@ -215,75 +221,81 @@ let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
     };
   };
 
-  let sprite_match = sprite =>
+  let sprite_match = (context, sprite) =>
     switch (sprite) {
-    | Some(s) => render_sprite_line(s)
+    | Some(s) => render_sprite_line(context, s)
     | None => ()
     };
 
-  let precompute_sprites = () => {
+  let precompute_sprites = context => {
     for (i in 0 to 255) {
       context.sprites[i] = empty_sprite;
     };
-    let sprites = Sprite.Table.build(ppu.oam, context.scanline);
-    Array.iter(sprite_match, sprites);
+    let sprites = Sprite.Table.build(context.ppu.oam, context.scanline);
+    Array.iter(sprite_match(context), sprites);
   };
 
-  let render_tile = () => {
+  let render_tile = context => {
     let x = context.scroll.coarse_x;
     let y = context.scroll.coarse_y;
-    let background = find_background(x, y);
-    let backdrop = Ppu.read_vram(ppu, 0x3f00);
+    let background = find_background(context, x, y);
+    let backdrop = Ppu.read_vram(context.ppu, 0x3f00);
     for (i in 0 to 7) {
       let sprite = context.sprites[x * 8 + i];
-      let pixel_type = pixel_priority(background, sprite, i);
+      let pixel_type = pixel_priority(context, background, sprite, i);
       let color =
         switch (pixel_type) {
         | Backdrop => backdrop
-        | Background(index) => Ppu.read_vram(ppu, 0x3f00 + index)
-        | Sprite(index) => Ppu.read_vram(ppu, 0x3f10 + index)
+        | Background(index) => Ppu.read_vram(context.ppu, 0x3f00 + index)
+        | Sprite(index) => Ppu.read_vram(context.ppu, 0x3f10 + index)
         };
-      draw(color, i);
+      draw(context, color, i);
     };
-    ScrollInfo.next_tile(context.scroll, (ppu.pattern_table)#mirroring);
+    ScrollInfo.next_tile(
+      context.scroll,
+      (context.ppu.pattern_table)#mirroring,
+    );
   };
 
-  let render_scanline = () => {
-    if (Ppu.rendering_enabled(ppu)) {
-      precompute_sprites();
+  let render_scanline = context => {
+    if (Ppu.rendering_enabled(context.ppu)) {
+      precompute_sprites(context);
       for (_ in 0 to 31) {
-        render_tile();
+        render_tile(context);
       };
     };
-    ScrollInfo.next_scanline(context.scroll, (ppu.pattern_table)#mirroring);
+    ScrollInfo.next_scanline(
+      context.scroll,
+      (context.ppu.pattern_table)#mirroring,
+    );
   };
 
-  let start_vblank = () => {
-    Ppu.set_vblank(ppu.registers, true);
-    if (Ppu.vblank_nmi(ppu.registers) == Ppu.NMIEnabled) {
-      on_nmi();
+  let start_vblank = context => {
+    Ppu.set_vblank(context.ppu.registers, true);
+    if (Ppu.vblank_nmi(context.ppu.registers) == Ppu.NMIEnabled) {
+      context.on_nmi();
     };
   };
 
-  let finish_vblank = () => {
-    if (Ppu.rendering_enabled(ppu)) {
-      ppu.registers.ppu_address = ppu.registers.buffer;
-      Ppu.set_sprite_zero_hit(ppu.registers, false);
+  let finish_vblank = context => {
+    if (Ppu.rendering_enabled(context.ppu)) {
+      context.ppu.registers.ppu_address = context.ppu.registers.buffer;
+      Ppu.set_sprite_zero_hit(context.ppu.registers, false);
     };
-    Ppu.set_vblank(ppu.registers, false);
-    context.scroll = ScrollInfo.build(ppu);
+    Ppu.set_vblank(context.ppu.registers, false);
+    context.scroll = ScrollInfo.build(context.ppu);
     context.frame;
   };
+};
 
-  (~on_frame: frame => unit) => {
-    if (context.scanline < 240) {
-      render_scanline();
-    } else if (context.scanline == 241) {
-      start_vblank();
-    } else if (context.scanline == 261) {
-      finish_vblank() |> on_frame;
-    };
-
-    context.scanline = (context.scanline + 1) mod scanlines_per_frame;
+let sync = (context: Context.t, ~on_frame: frame => unit) => {
+  if (context.scanline < 240) {
+    Context.render_scanline(context);
+  } else if (context.scanline == 241) {
+    Context.start_vblank(context);
+  } else if (context.scanline == 261) {
+    Context.finish_vblank(context) |> on_frame;
   };
+
+  context.scanline = (context.scanline + 1) mod scanlines_per_frame;
 };
