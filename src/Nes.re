@@ -3,7 +3,7 @@ type t = {
   ppu: Ppu.t,
   rom: Rom.t,
   gamepad: Gamepad.t,
-  render: (~on_frame: Render.frame => unit) => unit,
+  render: Render.Context.t,
   mutable frame: Render.frame,
 };
 
@@ -18,7 +18,7 @@ let load = (rom: Rom.t): t => {
   Cpu.reset(cpu);
 
   let ppu = memory.ppu;
-  let render = Render.make(ppu, rom, ~on_nmi=() => Cpu.nmi(cpu));
+  let render = Render.Context.make(ppu, rom, ~on_nmi=() => Cpu.nmi(cpu));
 
   {cpu, ppu, rom, gamepad, render, frame: [||]};
 };
@@ -41,10 +41,10 @@ let load = (rom: Rom.t): t => {
  */
 
 let dma = (nes, ~on_frame) => {
-  nes.render(~on_frame);
-  nes.render(~on_frame);
-  nes.render(~on_frame);
-  nes.render(~on_frame);
+  Render.sync(nes.render, ~on_frame);
+  Render.sync(nes.render, ~on_frame);
+  Render.sync(nes.render, ~on_frame);
+  Render.sync(nes.render, ~on_frame);
   nes.cpu.cycles = nes.cpu.cycles + 61;
   nes.cpu.memory.dma = false;
 };
@@ -57,7 +57,7 @@ let step = (~on_frame=_ => (), nes: t) => {
   };
 
   if (nes.cpu.cycles >= Render.cycles_per_scanline) {
-    nes.render(~on_frame);
+    Render.sync(nes.render, ~on_frame);
     nes.cpu.cycles = nes.cpu.cycles mod Render.cycles_per_scanline;
   };
 };
