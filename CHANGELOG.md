@@ -4,6 +4,10 @@ Change types:
 * Optimization
 * Bugfix
 
+## Changes for 0.3.3 (11/23/19):
+
+* Enhancement: Allow rendering nametables independently.
+
 ## Changes for 0.3.2 (08/07/19):
 
 * Enhancement: Reimplement the sprite renderer, cutting runtime in half due to reduced allocation and other factors.

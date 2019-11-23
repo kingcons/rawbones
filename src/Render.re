@@ -176,13 +176,20 @@ module Context = {
     Ppu.read_vram(context.ppu, at_offset + (y / 4) lsl 3 + x / 4);
   };
 
-  let find_background = (context, ~nt_index=context.scroll.nt_index, x, y) => {
+  let find_background =
+      (
+        context,
+        ~nt_index=context.scroll.nt_index,
+        ~fine_y=context.scroll.fine_y,
+        x,
+        y,
+      ) => {
     let pattern = find_bg_tile(context, nt_index, x, y);
     let at_byte = find_attr(context, nt_index, x, y);
     let quad = ScrollInfo.quad_position(x, y);
     {
       high_bits: Pattern.Tile.high_bits(at_byte, quad),
-      line_bits: pattern[context.scroll.fine_y],
+      line_bits: pattern[fine_y],
     };
   };
 
@@ -243,20 +250,28 @@ module Context = {
     let frame = Array.make(256 * 240 * 3, 0);
     let backdrop = Ppu.read_vram(context.ppu, 0x3f00);
     for (coarse_y in 0 to 29) {
-      for (coarse_x in 0 to 31) {
-        let bg = find_background(context, coarse_x, coarse_y, ~nt_index=nt_index);
-        for (fine_x in 0 to 7) {
-          let index = bg.line_bits[fine_x] > 0 ? bg.high_bits lsl 2 lor bg.line_bits[fine_x] : 0;
-          let color = index > 0 ? Ppu.read_vram(context.ppu, 0x3f00 + index) : backdrop;
-          let frame_offset = (coarse_y * 256 + coarse_x * 8) * 3;
-          for (i in 0 to 2) {
-            let byte = color_palette[color * 3 + i];
-            let pixel_offset = frame_offset + fine_x * 3 + i;
-            frame[pixel_offset] = byte;
+      for (fine_y in 0 to 7) {
+        for (coarse_x in 0 to 31) {
+          let bg =
+            find_background(context, coarse_x, coarse_y, ~nt_index, ~fine_y);
+          for (fine_x in 0 to 7) {
+            let index =
+              bg.line_bits[fine_x] > 0
+                ? bg.high_bits lsl 2 lor bg.line_bits[fine_x] : 0;
+            let color =
+              index > 0
+                ? Ppu.read_vram(context.ppu, 0x3f00 + index) : backdrop;
+            let scanline_offset = (coarse_y * 8 + fine_y) * 256;
+            let frame_offset = (scanline_offset + coarse_x * 8) * 3;
+            for (i in 0 to 2) {
+              let byte = color_palette[color * 3 + i];
+              let pixel_offset = frame_offset + fine_x * 3 + i;
+              frame[pixel_offset] = byte;
+            };
           };
-        }
-      }
-    }
+        };
+      };
+    };
     frame;
   };
 
