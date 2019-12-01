@@ -4,14 +4,6 @@ open Types;
 
 describe("Render", () => {
   describe("scrolling", () => {
-    let builder = (x, y): Render.ScrollInfo.t => {
-      nt_index: 0,
-      coarse_x: x,
-      coarse_y: y,
-      fine_x: 0,
-      fine_y: 0,
-    };
-
     test("we create ScrollInfo from registers correctly", () => {
       let address = 0b010001111001111;
       let control = 0b10000001;
@@ -106,32 +98,24 @@ describe("Render", () => {
     });
 
     test("can detect top left quadrants using the scroll", () => {
-      let s1 = builder(0, 0);
-      let s2 = builder(1, 1);
       let q1 = Render.ScrollInfo.quad_position(0, 0);
       let q2 = Render.ScrollInfo.quad_position(1, 1);
       expect([q1, q2]) |> toEqual([TopLeft, TopLeft]);
     });
 
     test("can detect top right quadrants using the scroll", () => {
-      let s1 = builder(2, 0);
-      let s2 = builder(3, 1);
       let q1 = Render.ScrollInfo.quad_position(2, 0);
       let q2 = Render.ScrollInfo.quad_position(3, 1);
       expect([q1, q2]) |> toEqual([TopRight, TopRight]);
     });
 
     test("can detect bottom left quadrants using the scroll", () => {
-      let s1 = builder(0, 2);
-      let s2 = builder(1, 3);
       let q1 = Render.ScrollInfo.quad_position(0, 2);
       let q2 = Render.ScrollInfo.quad_position(1, 3);
       expect([q1, q2]) |> toEqual([BottomLeft, BottomLeft]);
     });
 
     test("can detect bottom right quadrants using the scroll", () => {
-      let s1 = builder(2, 2);
-      let s2 = builder(3, 3);
       let q1 = Render.ScrollInfo.quad_position(2, 2);
       let q2 = Render.ScrollInfo.quad_position(3, 3);
       expect([q1, q2]) |> toEqual([BottomRight, BottomRight]);

@@ -29,7 +29,7 @@ let format =
     |> String.trim
     |> Util.ljust(5);
   let fargs = AddressingMode.format_args(opcode.addressing_mode, args);
-  let label = String.uppercase(instruction.label);
+  let label = String.uppercase_ascii(instruction.label);
   let base = {j|$hstart $hcode $hargs ;; $label|j};
   fargs == "" ? base ++ "\n" : base ++ " " ++ fargs ++ "\n";
 };
