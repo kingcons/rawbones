@@ -89,6 +89,7 @@ let nt_mirror = (ppu, address) => {
   | (Rom.Vertical, _) => address land 0x7ff
   };
 };
+
 let palette_mirror = addr =>
   addr > 0x3f0f && addr mod 4 == 0 ? (addr - 16) land 0x1f : addr land 0x1f;
 

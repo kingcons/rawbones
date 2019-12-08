@@ -16,6 +16,45 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
   let prg_mode = ref(SwitchLow);
   let chr_mode = ref(Switch1);
 
+  let select_mirroring = address =>
+    switch (address land 0x3) {
+    | 0 => Rom.Lower
+    | 1 => Rom.Upper
+    | 2 => Rom.Vertical
+    | _ => Rom.Horizontal
+    };
+
+  let select_prg_mode = address =>
+    switch (address lsr 2 land 0x3) {
+    | 2 => SwitchHigh
+    | 3 => SwitchLow
+    | _ => SwitchBoth
+    };
+
+  let select_chr_mode = address =>
+    switch (address lsr 4 land 0x1) {
+      | 0 => Switch1
+      | _ => Switch2
+    }
+
+  let update = address =>
+    if (address < 0xa000) {
+      mirroring := select_mirroring(accumulator^);
+      prg_mode := select_prg_mode(accumulator^);
+      chr_mode := select_chr_mode(accumulator^);
+    } else if (address < 0xc000) {
+      if (chr_mode^ == Switch1) {
+        chr_bank0 := accumulator^;
+      } else {
+        chr_bank0 := accumulator^;
+        chr_bank1 := accumulator^ lor 1;
+      };
+    } else if (address < 0xe000) {
+      if (chr_mode^ == Switch1) {
+        chr_bank1 := accumulator^;
+      };
+    };
+
   let chr_addr = offset => {
     let bank = offset < 0x1000 ? chr_bank0^ : chr_bank1^;
     bank * 0x1000 + offset land 0xfff;
@@ -24,45 +63,6 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
     let bank = offset < 0xC000 ? prg_bank^ : rom.prg_count - 1;
     bank * 0x4000 + offset land 0x3fff;
   };
-
-  let update = address =>
-    if (address < 0xa000) {
-      mirroring :=
-        (
-          switch (address land 0x3) {
-          | 0 => Lower
-          | 1 => Upper
-          | 2 => Vertical
-          | _ => Horizontal
-          }
-        );
-      prg_mode :=
-        (
-          switch (address lsr 2 land 0x3) {
-          | 2 => SwitchHigh
-          | 3 => SwitchLow
-          | _ => SwitchBoth
-          }
-        );
-      chr_mode :=
-        (
-          switch (address lsr 4 land 0x1) {
-          | 0 => Switch2
-          | _ => Switch1
-          }
-        );
-    } else if (address < 0xc000) {
-      if (chr_mode^ == Switch1) {
-        chr_bank0 := accumulator^;
-      } else {
-        chr_bank0 := accumulator^;
-        chr_bank1 := accumulator^ land 1;
-      };
-    } else if (address < 0xe000) {
-      if (chr_mode^ == Switch1) {
-        chr_bank1 := accumulator^;
-      };
-    };
 
   let get_prg = address => Util.aref(rom.prg, prg_addr(address));
   let set_prg = (address, value) => {
