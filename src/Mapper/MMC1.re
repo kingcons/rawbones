@@ -2,6 +2,7 @@ type prg_mode =
   | SwitchBoth
   | SwitchHigh
   | SwitchLow;
+
 type chr_mode =
   | Switch1
   | Switch2;
@@ -9,30 +10,30 @@ type chr_mode =
 let mmc1 = (rom: Rom.t): Mapper.t => {
   let mirroring = ref(rom.mirroring);
   let prg_bank = ref(0);
-  let chr_bank0 = ref(0);
   let chr_bank1 = ref(0);
+  let chr_bank2 = ref(0);
   let write_count = ref(0);
   let accumulator = ref(0);
   let prg_mode = ref(SwitchLow);
   let chr_mode = ref(Switch1);
 
-  let select_mirroring = address =>
-    switch (address land 0x3) {
+  let select_mirroring = acc =>
+    switch (acc land 0x3) {
     | 0 => Rom.Lower
     | 1 => Rom.Upper
     | 2 => Rom.Vertical
     | _ => Rom.Horizontal
     };
 
-  let select_prg_mode = address =>
-    switch (address lsr 2 land 0x3) {
+  let select_prg_mode = acc =>
+    switch (acc lsr 2 land 0x3) {
     | 2 => SwitchHigh
     | 3 => SwitchLow
     | _ => SwitchBoth
     };
 
-  let select_chr_mode = address =>
-    switch (address lsr 4 land 0x1) {
+  let select_chr_mode = acc =>
+    switch (acc lsr 4 land 0x1) {
       | 0 => Switch1
       | _ => Switch2
     }
@@ -44,19 +45,19 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
       chr_mode := select_chr_mode(accumulator^);
     } else if (address < 0xc000) {
       if (chr_mode^ == Switch1) {
-        chr_bank0 := accumulator^;
+        chr_bank1 := accumulator^;
       } else {
-        chr_bank0 := accumulator^;
-        chr_bank1 := accumulator^ lor 1;
+        chr_bank1 := accumulator^;
+        chr_bank2 := accumulator^ lor 1;
       };
     } else if (address < 0xe000) {
       if (chr_mode^ == Switch1) {
-        chr_bank1 := accumulator^;
+        chr_bank2 := accumulator^;
       };
     };
 
   let chr_addr = offset => {
-    let bank = offset < 0x1000 ? chr_bank0^ : chr_bank1^;
+    let bank = offset < 0x1000 ? chr_bank1^ : chr_bank2^;
     bank * 0x1000 + offset land 0xfff;
   };
   let prg_addr = offset => {

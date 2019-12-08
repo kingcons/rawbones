@@ -64,6 +64,22 @@ describe("Mappers", () => {
       expect((mapper.get_chr(0), mapper.get_chr(0x1000)))
       |> toEqual((2, 3));
     });
+
+    test("it can switch mirroring modes", () => {
+      let mapper = init();
+
+      write(mapper, 0x8000, 0b00000);
+      let lower = mapper.mirroring();
+      write(mapper, 0x8000, 0b00001);
+      let upper = mapper.mirroring();
+      write(mapper, 0x8000, 0b00010);
+      let vertical = mapper.mirroring();
+      write(mapper, 0x8000, 0b00011);
+      let horizontal = mapper.mirroring();
+
+      expect((lower, upper, horizontal, vertical))
+      |> toEqual((Rom.Lower, Rom.Upper, Rom.Horizontal, Rom.Vertical));
+    });
   });
 
   describe("nrom", () => {
