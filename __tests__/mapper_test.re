@@ -22,7 +22,7 @@ describe("Mappers", () => {
   };
 
   describe("mmc1", () => {
-    let init = () => make(MMC1, 2, 8);
+    let init = () => make(MMC1, 4, 8);
 
     let write = (mapper: Mapper.t, address, value) => {
       for (i in 0 to 4) {
@@ -64,6 +64,14 @@ describe("Mappers", () => {
       expect((mapper.get_chr(0), mapper.get_chr(0x1000)))
       |> toEqual((2, 3));
     });
+
+    test("it can switch the prg bank", () => {
+      let mapper = init();
+
+      write(mapper, 0xe000, 3);
+
+      expect(mapper.get_prg(0)) |> toEqual(3);
+    })
 
     test("it can switch mirroring modes", () => {
       let mapper = init();

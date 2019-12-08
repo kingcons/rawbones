@@ -54,6 +54,8 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
       if (chr_mode^ == Switch1) {
         chr_bank2 := accumulator^;
       };
+    } else {
+      prg_bank := accumulator^;
     };
 
   let chr_addr = offset => {
