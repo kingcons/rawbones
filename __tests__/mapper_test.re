@@ -88,6 +88,19 @@ describe("Mappers", () => {
       expect((lower, upper, horizontal, vertical))
       |> toEqual((Rom.Lower, Rom.Upper, Rom.Horizontal, Rom.Vertical));
     });
+
+    test("it can be reset by writing a high bit", () => {
+      let mapper = init();
+
+      mapper.set_prg(0xe000, 1);
+      mapper.set_prg(0xe000, 1);
+      mapper.set_prg(0xe000, 0);
+      mapper.set_prg(0x8000, 0b10000000);
+      mapper.set_prg(0xe000, 0);
+      mapper.set_prg(0xe000, 0);
+
+      expect(mapper.get_prg(0)) |> toEqual(0);
+    })
   });
 
   describe("nrom", () => {

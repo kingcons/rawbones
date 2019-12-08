@@ -69,15 +69,20 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
 
   let get_prg = address => Util.aref(rom.prg, prg_addr(address));
   let set_prg = (address, value) => {
-    let bit = value land 1;
-    accumulator := accumulator^ + bit lsl write_count^;
-    write_count := write_count^ + 1;
-
-    if (write_count^ == 5) {
-      update(address);
+    if (Util.read_bit(value, 7)) {
       write_count := 0;
       accumulator := 0;
-    };
+    } else {
+      let bit = value land 1;
+      accumulator := accumulator^ + bit lsl write_count^;
+      write_count := write_count^ + 1;
+
+      if (write_count^ == 5) {
+        update(address);
+        write_count := 0;
+        accumulator := 0;
+      };
+    }
   };
 
   let get_chr = address => Util.aref(rom.chr, chr_addr(address));
