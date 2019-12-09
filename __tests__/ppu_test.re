@@ -63,6 +63,14 @@ describe("PPU", () => {
       |> toEqual((131, 3, false));
     });
 
+    test("fetching from OAMDATA returns sprite data", () => {
+      ppu.oam[7] = 17;
+      ppu.registers.oam_address = 7;
+
+      let return_value = Ppu.fetch(ppu, 0x2004);
+      expect(return_value) |> toEqual(17);
+    });
+
     test("fetching from PPUDATA returns a buffered value", () => {
       regs.ppu_address = 0x2020;
       regs.ppu_data = 0;
@@ -79,8 +87,7 @@ describe("PPU", () => {
       expect((return_value, regs.ppu_data)) |> toEqual((33, 33));
     });
 
-    test(
-      "fetching from PPUDATA increments the ppu_address by the vram_step", () => {
+    test("fetching from PPUDATA increments the PPUADDR by vram_step", () => {
       regs.ppu_address = 0x2010;
       let _ = Ppu.fetch(ppu, 0x2007);
       let small_step = regs.ppu_address;

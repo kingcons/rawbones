@@ -124,6 +124,10 @@ let read_status = ppu => {
   result;
 };
 
+let read_oam = ppu => {
+  ppu.oam[ppu.registers.oam_address];
+}
+
 let read_ppu_data = ppu => {
   let address = ppu.registers.ppu_address;
   let buffer = ppu.registers.ppu_data;
@@ -136,6 +140,7 @@ let read_ppu_data = ppu => {
 let fetch = (ppu: t, address) =>
   switch (address land 7) {
   | 2 => read_status(ppu)
+  | 4 => read_oam(ppu)
   | 7 => read_ppu_data(ppu)
   | _ => 0
   };
