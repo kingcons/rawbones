@@ -11,9 +11,3 @@ type cpu = {
   mutable stack: byte,
   mutable pc: int,
 };
-
-type quadrant =
-  | TopLeft
-  | TopRight
-  | BottomLeft
-  | BottomRight;

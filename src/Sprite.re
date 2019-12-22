@@ -20,7 +20,6 @@ module Tile = {
   let behind = sprite => Util.read_bit(sprite.attributes, 5);
   let flip_hori = sprite => Util.read_bit(sprite.attributes, 6);
   let flip_vert = attr_byte => Util.read_bit(attr_byte, 7);
-  let high_bits = sprite => sprite.attributes land 0x3;
   let line_bits = (sprite, tile, scanline) => {
     let row = scanline - sprite.y_position;
     let line = flip_vert(sprite.attributes) ? 7 - row : row;

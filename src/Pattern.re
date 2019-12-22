@@ -19,15 +19,6 @@ module Tile = {
   let from_codes = (cs): t =>
     from_bytes(Bytes.init(16, i => Char.chr(cs[i])), 0);
 
-  let high_bits = (at_byte, quadrant: Types.quadrant) => {
-    switch (quadrant) {
-    | TopLeft => at_byte lsr 0 land 3
-    | TopRight => at_byte lsr 2 land 3
-    | BottomLeft => at_byte lsr 4 land 3
-    | BottomRight => at_byte lsr 6 land 3
-    };
-  };
-
   let inspect = (tile: t, format: int => string): string => {
     let result = ref("");
 

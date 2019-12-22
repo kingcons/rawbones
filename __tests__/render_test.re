@@ -1,6 +1,5 @@
 open Jest;
 open Expect;
-open Types;
 
 describe("Render", () => {
   describe("scrolling", () => {
@@ -100,25 +99,25 @@ describe("Render", () => {
     test("can detect top left quadrants using the scroll", () => {
       let q1 = Render.ScrollInfo.quad_position(0, 0);
       let q2 = Render.ScrollInfo.quad_position(1, 1);
-      expect([q1, q2]) |> toEqual([TopLeft, TopLeft]);
+      expect([q1, q2]) |> toEqual([Render.TopLeft, Render.TopLeft]);
     });
 
     test("can detect top right quadrants using the scroll", () => {
       let q1 = Render.ScrollInfo.quad_position(2, 0);
       let q2 = Render.ScrollInfo.quad_position(3, 1);
-      expect([q1, q2]) |> toEqual([TopRight, TopRight]);
+      expect([q1, q2]) |> toEqual([Render.TopRight, Render.TopRight]);
     });
 
     test("can detect bottom left quadrants using the scroll", () => {
       let q1 = Render.ScrollInfo.quad_position(0, 2);
       let q2 = Render.ScrollInfo.quad_position(1, 3);
-      expect([q1, q2]) |> toEqual([BottomLeft, BottomLeft]);
+      expect([q1, q2]) |> toEqual([Render.BottomLeft, Render.BottomLeft]);
     });
 
     test("can detect bottom right quadrants using the scroll", () => {
       let q1 = Render.ScrollInfo.quad_position(2, 2);
       let q2 = Render.ScrollInfo.quad_position(3, 3);
-      expect([q1, q2]) |> toEqual([BottomRight, BottomRight]);
+      expect([q1, q2]) |> toEqual([Render.BottomRight, Render.BottomRight]);
     });
   });
 

@@ -13,6 +13,8 @@ type t = {
 exception NotImplemented(Rom.mapper);
 exception NotAllowed(string);
 
+let tile_cache = ref(Pattern.Table.load(Bytes.make(0x2000, Char.chr(0))));
+
 let nrom = (rom: Rom.t): t => {
   let mirroring = ref(rom.mirroring);
 

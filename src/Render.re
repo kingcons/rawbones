@@ -19,6 +19,12 @@
    During rendering, the address register is updated by the PPU to reflect the current memory access.
  */
 
+type quadrant =
+  | TopLeft
+  | TopRight
+  | BottomLeft
+  | BottomRight;
+
 module ScrollInfo = {
   type t = {
     mutable nt_index: int,
@@ -77,7 +83,7 @@ module ScrollInfo = {
     | _ => scroll.fine_y = scroll.fine_y + 1
     };
 
-  let quad_position = (coarse_x, coarse_y): Types.quadrant =>
+  let quad_position = (coarse_x, coarse_y): quadrant =>
     switch (coarse_x / 2 mod 2, coarse_y / 2 mod 2) {
     | (0, 0) => TopLeft
     | (0, 1) => BottomLeft
@@ -135,24 +141,33 @@ module Context = {
     mutable scanline: int,
     mutable sprites: array(sprite),
     mutable scroll: ScrollInfo.t,
-    mutable cache: Pattern.Table.t,
     mutable frame,
-    on_nmi: unit => unit,
     ppu: Ppu.t,
+    on_nmi: unit => unit,
   };
   let empty_sprite = (0, false, false);
 
-  let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
+  let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     {
       scanline: 0,
       sprites: Array.make(256, empty_sprite),
       scroll: ScrollInfo.build(ppu),
-      cache: Pattern.Table.load(rom.chr),
       frame: Array.make(width * height * 3, 0),
       ppu,
       on_nmi,
     };
   };
+
+  let bg_high_bits = (at_byte, quadrant) => {
+    switch (quadrant) {
+    | TopLeft => at_byte lsr 0 land 3
+    | TopRight => at_byte lsr 2 land 3
+    | BottomLeft => at_byte lsr 4 land 3
+    | BottomRight => at_byte lsr 6 land 3
+    };
+  };
+
+  let sprite_high_bits = (sprite: Sprite.Tile.t) => sprite.attributes land 0x3;
 
   let draw = (context, color_index, pixel) => {
     let frame_offset =
@@ -168,7 +183,7 @@ module Context = {
     let nt_offset = Ppu.nt_offset(nt_index);
     let nt = Ppu.read_vram(context.ppu, nt_offset + 32 * y + x);
     let pattern_index = Ppu.background_offset(context.ppu) + nt;
-    context.cache[pattern_index];
+    Mapper.tile_cache^[pattern_index];
   };
 
   let find_attr = (context, nt_index, x, y) => {
@@ -188,7 +203,7 @@ module Context = {
     let at_byte = find_attr(context, nt_index, x, y);
     let quad = ScrollInfo.quad_position(x, y);
     {
-      high_bits: Pattern.Tile.high_bits(at_byte, quad),
+      high_bits: bg_high_bits(at_byte, quad),
       line_bits: pattern[fine_y],
     };
   };
@@ -212,10 +227,10 @@ module Context = {
 
   let render_sprite_line = (context, sprite: Sprite.Tile.t) => {
     let start = sprite.x_position;
-    let tile = context.cache[Ppu.sprite_offset(context.ppu)
-                             + sprite.tile_index];
+    let tile_cache_index = Ppu.sprite_offset(context.ppu) + sprite.tile_index;
+    let tile = Mapper.tile_cache^[tile_cache_index];
     let bits = Sprite.Tile.line_bits(sprite, tile, context.scanline);
-    let high = Sprite.Tile.high_bits(sprite);
+    let high = sprite_high_bits(sprite);
     for (i in start to min(start + 7, 255)) {
       let (color, _, _) = context.sprites[i];
       if (color == 0) {
