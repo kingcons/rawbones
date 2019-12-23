@@ -291,10 +291,7 @@ module Context = {
         };
       draw(context, color, i);
     };
-    ScrollInfo.next_tile(
-      context.scroll,
-      (context.ppu.pattern_table)#mirroring,
-    );
+    ScrollInfo.next_tile(context.scroll, context.ppu.pattern_table.mirroring());
   };
 
   let render_scanline = context => {
@@ -304,10 +301,7 @@ module Context = {
         render_tile(context);
       };
     };
-    ScrollInfo.next_scanline(
-      context.scroll,
-      (context.ppu.pattern_table)#mirroring,
-    );
+    ScrollInfo.next_scanline(context.scroll, context.ppu.pattern_table.mirroring());
   };
 
   let start_vblank = context => {

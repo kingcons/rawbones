@@ -7,8 +7,10 @@ type mapper =
   | Unknown;
 
 type mirroring =
-  | Horizontal
-  | Vertical;
+  | Lower
+  | Upper
+  | Vertical
+  | Horizontal;
 
 type t = {
   pathname: string,

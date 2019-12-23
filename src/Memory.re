@@ -9,9 +9,19 @@ type t = {
   mutable dma: bool,
 };
 
+let mapper_for_rom = (rom: Rom.t): Mapper.t => {
+  switch (rom.mapper) {
+  | NROM => Mapper.nrom(rom)
+  | UNROM => Mapper.unrom(rom)
+  | CNROM => Mapper.cnrom(rom)
+  | MMC1 => MMC1.mmc1(rom)
+  | mapper => raise(Mapper.NotImplemented(mapper))
+  };
+};
+
 let build = (rom: Rom.t): t => {
   let ram = Bytes.make(0x800, Char.chr(0));
-  let mapper = Mapper.for_rom(rom);
+  let mapper = mapper_for_rom(rom);
   let ppu = Ppu.build(mapper);
   let gamepad = Gamepad.build();
 
@@ -35,7 +45,7 @@ let get_byte = (mem: t, loc: address): int =>
     0;
     // TODO: APU and such
   } else {
-    (mem.mapper)#get_prg(loc);
+    mem.mapper.get_prg(loc);
   };
 
 let dma = (mem, value) => {
@@ -60,7 +70,7 @@ let set_byte = (mem: t, loc: address, value: byte) =>
   } else if (loc < 0x8000) {
     ();
   } else {
-    (mem.mapper)#set_prg(loc, value);
+    mem.mapper.set_prg(loc, value);
   };
 
 let get_word = (mem: t, loc: address) => {

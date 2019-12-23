@@ -38,3 +38,6 @@ let read_bit = (value: int, index: int): bool => {
   let mask = 1 lsl index;
   value land mask == mask;
 };
+
+let aref = (mem, address) => Bytes.get(mem, address) |> Char.code;
+let set = (mem, address, byte) => Char.chr(byte) |> Bytes.set(mem, address);
