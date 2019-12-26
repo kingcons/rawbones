@@ -10,8 +10,6 @@ type chr_mode =
 let mmc1 = (rom: Rom.t): Mapper.t => {
   let mirroring = ref(rom.mirroring);
   let prg_bank = ref(0);
-  let chr_bank1 = ref(0);
-  let chr_bank2 = ref(0);
   let write_count = ref(0);
   let accumulator = ref(0);
   let prg_mode = ref(SwitchLow);
@@ -45,21 +43,23 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
       chr_mode := select_chr_mode(accumulator^);
     } else if (address < 0xc000) {
       if (chr_mode^ == Switch1) {
-        chr_bank1 := accumulator^;
+        Mapper.tile_cache.chr_bank1 := accumulator^;
       } else {
-        chr_bank1 := accumulator^;
-        chr_bank2 := accumulator^ lor 1;
+        Mapper.tile_cache.chr_bank1 := accumulator^;
+        Mapper.tile_cache.chr_bank2 := accumulator^ lor 1;
       };
+      Mapper.tile_cache.recompute := true;
     } else if (address < 0xe000) {
       if (chr_mode^ == Switch1) {
-        chr_bank2 := accumulator^;
+        Mapper.tile_cache.chr_bank2 := accumulator^;
       };
+      Mapper.tile_cache.recompute := true;
     } else {
       prg_bank := accumulator^;
     };
 
   let chr_addr = offset => {
-    let bank = offset < 0x1000 ? chr_bank1^ : chr_bank2^;
+    let bank = offset < 0x1000 ? Mapper.tile_cache.chr_bank1^ : Mapper.tile_cache.chr_bank2^;
     bank * 0x1000 + offset land 0xfff;
   };
   let prg_addr = offset => {
@@ -86,10 +86,13 @@ let mmc1 = (rom: Rom.t): Mapper.t => {
   };
 
   let get_chr = address => Util.aref(rom.chr, chr_addr(address));
-  let set_chr = (address, byte) =>
+  let set_chr = (address, byte) => {
     Util.set(rom.chr, chr_addr(address), byte);
+    Mapper.tile_cache.recompute := true;
+  };
 
   {
+    rom,
     get_prg,
     set_prg,
     get_chr,

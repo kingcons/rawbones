@@ -7,6 +7,10 @@ describe("Mappers", () => {
     let prg_size = prg_count * 0x4000;
     let chr_size = chr_count * 0x2000;
 
+    // KLUDGE: We have to frob the tile cache now since it retains global state. :-(
+    Mapper.tile_cache.chr_bank1 := 0;
+    Mapper.tile_cache.chr_bank2 := 1;
+
     Memory.mapper_for_rom({
       pathname: "memrom",
       prg: Bytes.init(prg_size, n => Char.chr(n / 0x4000)),
@@ -34,7 +38,7 @@ describe("Mappers", () => {
       let mapper = init();
 
       expect((mapper.get_chr(0), mapper.get_chr(0x1000)))
-      |> toEqual((0, 0));
+      |> toEqual((0, 1));
     });
 
     test("it can switch the lower chr bank", () => {
@@ -43,7 +47,7 @@ describe("Mappers", () => {
       write(mapper, 0xa000, 5);
 
       expect((mapper.get_chr(0), mapper.get_chr(0x1000)))
-      |> toEqual((5, 0));
+      |> toEqual((5, 1));
     });
 
     test("it can switch the upper chr bank", () => {

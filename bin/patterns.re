@@ -14,5 +14,5 @@ let rom = File.rom(rom_path);
     | 3 => {js|█|js}
     | _ => {js|░|js}
     };
-  Array.iter(tile => Js.log(Tile.inspect(tile, format)), table);
+  Array.iter(tile => Js.log(Tile.inspect(tile, format)), table.tiles^);
 };

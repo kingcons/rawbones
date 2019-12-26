@@ -35,9 +35,24 @@ module Tile = {
 };
 
 module Table = {
-  type t = array(Tile.t);
+  type t = {
+    recompute: ref(bool),
+    chr_bank1: ref(int),
+    chr_bank2: ref(int),
+    tiles: ref(array(Tile.t))
+  }
 
-  let load = (bytes): array(Tile.t) => {
-    Array.init(512, i => Tile.from_bytes(bytes, i));
+  let load = (bytes): t => {
+    {
+      recompute: ref(false),
+      chr_bank1: ref(0),
+      chr_bank2: ref(1),
+      tiles: ref(Array.init(512, i => Tile.from_bytes(bytes, i)))
+    }
+  };
+
+  let rebuild = (table, bytes) => {
+    let offset = (i) => { i < 256 ? table.chr_bank1^ * 256 + i : table.chr_bank2^ * 256 + i };
+    table.tiles := Array.init(512, i => Tile.from_bytes(bytes, offset(i)));
   };
 };

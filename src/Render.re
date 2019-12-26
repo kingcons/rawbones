@@ -183,7 +183,7 @@ module Context = {
     let nt_offset = Ppu.nt_offset(nt_index);
     let nt = Ppu.read_vram(context.ppu, nt_offset + 32 * y + x);
     let pattern_index = Ppu.background_offset(context.ppu) + nt;
-    Mapper.tile_cache^[pattern_index];
+    Mapper.tile_cache.tiles^[pattern_index];
   };
 
   let find_attr = (context, nt_index, x, y) => {
@@ -228,7 +228,7 @@ module Context = {
   let render_sprite_line = (context, sprite: Sprite.Tile.t) => {
     let start = sprite.x_position;
     let tile_cache_index = Ppu.sprite_offset(context.ppu) + sprite.tile_index;
-    let tile = Mapper.tile_cache^[tile_cache_index];
+    let tile = Mapper.tile_cache.tiles^[tile_cache_index];
     let bits = Sprite.Tile.line_bits(sprite, tile, context.scanline);
     let high = sprite_high_bits(sprite);
     for (i in start to min(start + 7, 255)) {
@@ -332,6 +332,9 @@ module Context = {
       Ppu.set_sprite_zero_hit(context.ppu.registers, false);
     };
     Ppu.set_vblank(context.ppu.registers, false);
+    if (Mapper.tile_cache.recompute^) {
+      Pattern.Table.rebuild(Mapper.tile_cache, context.ppu.pattern_table.rom.chr);
+    }
     context.scroll = ScrollInfo.build(context.ppu);
     context.frame;
   };
