@@ -21,10 +21,8 @@ module Tile = {
   let flip_hori = sprite => Util.read_bit(sprite.attributes, 6);
   let flip_vert = attr_byte => Util.read_bit(attr_byte, 7);
   let high_bits = sprite => sprite.attributes land 0x3;
-  let line_bits = (sprite, tile, scanline) => {
-    let row = scanline - sprite.y_position;
-    let line = flip_vert(sprite.attributes) ? 7 - row : row;
-    tile[line];
+  let line_bits = (low, high) => {
+    Array.init(8, x => { high lsr (7 - x) land 1 * 2 + low lsr (7 - x) land 1 })
   };
 
   let on_line = (scanline, top_of_sprite) => {

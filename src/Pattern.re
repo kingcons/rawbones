@@ -28,6 +28,9 @@ module Tile = {
     };
   };
 
+  let line_bits = (low, high) =>
+    Array.init(8, x => { high lsr (7 - x) land 1 * 2 + low lsr (7 - x) land 1 })
+
   let inspect = (tile: t, format: int => string): string => {
     let result = ref("");
 

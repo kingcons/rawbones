@@ -58,9 +58,9 @@ let sprite_address = ctrl_helper(3, 0, 0x1000);
 let background_address = ctrl_helper(4, 0, 0x1000);
 let vblank_nmi = ctrl_helper(7, NMIDisabled, NMIEnabled);
 
-let sprite_offset = ppu => Util.read_bit(ppu.registers.control, 3) ? 256 : 0;
+let sprite_offset = ppu => Util.read_bit(ppu.registers.control, 3) ? 0x1000 : 0;
 let background_offset = ppu =>
-  Util.read_bit(ppu.registers.control, 4) ? 256 : 0;
+  Util.read_bit(ppu.registers.control, 4) ? 0x1000 : 0;
 
 let show_background_left = mask_helper(1);
 let show_sprites_left = mask_helper(2);
@@ -83,10 +83,11 @@ let nt_offset = nt_index => 0x2000 + nt_index * 0x400;
 let nt_mirror = (ppu, address) => {
   let mirroring = ppu.pattern_table.mirroring();
   // Bit 11 indicates we're reading from nametables 3 and 4, i.e. 2800 and 2C00.
+  // TODO: Support Upper and Lower mirroring.
   switch (mirroring, Util.read_bit(address, 11)) {
   | (Rom.Horizontal, false) => address land 0x3ff
   | (Rom.Horizontal, true) => 0x400 + address land 0x3ff
-  | (Rom.Vertical, _) => address land 0x7ff
+  | _ => address land 0x7ff // Vertical
   };
 };
 
