@@ -135,19 +135,17 @@ module Context = {
     mutable scanline: int,
     mutable sprites: array(sprite),
     mutable scroll: ScrollInfo.t,
-    mutable cache: Pattern.Table.t,
     mutable frame,
     on_nmi: unit => unit,
     ppu: Ppu.t,
   };
   let empty_sprite = (0, false, false);
 
-  let make = (ppu: Ppu.t, rom: Rom.t, ~on_nmi: unit => unit) => {
+  let make = (ppu: Ppu.t, ~on_nmi: unit => unit) => {
     {
       scanline: 0,
       sprites: Array.make(256, empty_sprite),
       scroll: ScrollInfo.build(ppu),
-      cache: Pattern.Table.load(rom.chr),
       frame: Array.make(width * height * 3, 0),
       ppu,
       on_nmi,
@@ -164,17 +162,21 @@ module Context = {
     };
   };
 
-  let find_bg_tile = (context, nt_index, x, y) => {
-    let nt_offset = Ppu.nt_offset(nt_index);
-    let nt = Ppu.read_vram(context.ppu, nt_offset + 32 * y + x);
-    let pattern_index = Ppu.background_offset(context.ppu) + nt;
-    context.cache[pattern_index];
-  };
-
-  let find_attr = (context, nt_index, x, y) => {
+  let get_high_bits = (context, x, y, nt_index) => {
     let at_offset = Ppu.nt_offset(nt_index) + 0x3c0;
-    Ppu.read_vram(context.ppu, at_offset + (y / 4) lsl 3 + x / 4);
-  };
+    let at_byte = Ppu.read_vram(context.ppu, at_offset + (y / 4) lsl 3 + x / 4);
+    let quad = ScrollInfo.quad_position(x, y);
+    Pattern.Tile.high_bits(at_byte, quad);
+  }
+
+  let get_line_bits = (context, x, y, nt_index, fine_y) => {
+    let nt_offset = Ppu.nt_offset(nt_index);
+    let nt_byte = Ppu.read_vram(context.ppu, nt_offset + 32 * y + x);
+    let bg_offset = Ppu.background_offset(context.ppu);
+    let low_byte = Ppu.read_vram(context.ppu, bg_offset + nt_byte * 16 + fine_y);
+    let high_byte = Ppu.read_vram(context.ppu, bg_offset + nt_byte * 16 + 8 + fine_y);
+    Pattern.Tile.line_bits(low_byte, high_byte);
+  }
 
   let find_background =
       (
@@ -184,12 +186,9 @@ module Context = {
         x,
         y,
       ) => {
-    let pattern = find_bg_tile(context, nt_index, x, y);
-    let at_byte = find_attr(context, nt_index, x, y);
-    let quad = ScrollInfo.quad_position(x, y);
     {
-      high_bits: Pattern.Tile.high_bits(at_byte, quad),
-      line_bits: pattern[fine_y],
+      high_bits: get_high_bits(context, x, y, nt_index),
+      line_bits: get_line_bits(context, x, y, nt_index, fine_y)
     };
   };
 
@@ -212,9 +211,13 @@ module Context = {
 
   let render_sprite_line = (context, sprite: Sprite.Tile.t) => {
     let start = sprite.x_position;
-    let tile = context.cache[Ppu.sprite_offset(context.ppu)
-                             + sprite.tile_index];
-    let bits = Sprite.Tile.line_bits(sprite, tile, context.scanline);
+    let row = context.scanline - sprite.y_position;
+    let sprite_offset = Ppu.sprite_offset(context.ppu);
+    let tile_offset = sprite.tile_index * 16;
+    let sprite_y = Sprite.Tile.flip_vert(sprite.attributes) ? (7 - row) : row; 
+    let low_byte = Ppu.read_vram(context.ppu, sprite_offset + tile_offset + sprite_y);
+    let high_byte = Ppu.read_vram(context.ppu, sprite_offset + tile_offset + 8 + sprite_y);
+    let bits = Sprite.Tile.line_bits(low_byte, high_byte);
     let high = Sprite.Tile.high_bits(sprite);
     for (i in start to min(start + 7, 255)) {
       let (color, _, _) = context.sprites[i];
