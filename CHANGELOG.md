@@ -4,6 +4,11 @@ Change types:
 * Optimization
 * Bugfix
 
+## Changes for 0.3.4 (12/26/19):
+
+* Enhancement: Support MMC1.
+* Bugfix: TileCache has been removed fixing issues with writes to CHR.
+
 ## Changes for 0.3.3 (11/23/19):
 
 * Enhancement: Allow rendering nametables independently.
