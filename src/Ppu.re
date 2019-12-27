@@ -134,9 +134,14 @@ let read_ppu_data = ppu => {
   let address = ppu.registers.ppu_address;
   let buffer = ppu.registers.ppu_data;
   let result = read_vram(ppu, address);
-  ppu.registers.ppu_data = result;
   ppu.registers.ppu_address = (address + vram_step(ppu.registers)) land 0x3fff;
-  address < 0x3f00 ? buffer : result;
+  if (address > 0x3f00) {
+    ppu.registers.ppu_data = ppu.name_table[nt_mirror(ppu, address)];
+    result;
+  } else {
+    ppu.registers.ppu_data = result;
+    buffer;
+  }
 };
 
 let fetch = (ppu: t, address) =>

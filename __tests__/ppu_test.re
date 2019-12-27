@@ -82,9 +82,17 @@ describe("PPU", () => {
     test("fetching palette info through PPUDATA is unbuffered", () => {
       regs.ppu_address = 0x3f01;
       ppu.palette_table[1] = 33;
-      regs.ppu_data = 0;
       let return_value = Ppu.fetch(ppu, 0x2007);
-      expect((return_value, regs.ppu_data)) |> toEqual((33, 33));
+      expect(return_value) |> toEqual(33);
+    });
+
+    test("fetching palette info still buffers the shadowed nametable data", () => {
+      ppu.name_table[0x701] = 100;
+      regs.ppu_address = 0x3f01;
+      let _ = Ppu.fetch(ppu, 0x2007);
+      regs.ppu_address = 0x2000;
+      let result = Ppu.fetch(ppu, 0x2007);
+      expect(result) |> toEqual(100);
     });
 
     test("fetching from PPUDATA increments the PPUADDR by vram_step", () => {
