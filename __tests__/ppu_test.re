@@ -95,6 +95,16 @@ describe("PPU", () => {
       expect(result) |> toEqual(100);
     });
 
+    test("reads and writes of palette addresses mirror above 0x3f1f", () => {
+      regs.ppu_address = 0x3f00;
+      Ppu.store(ppu, 0x2007, 0x12);
+      regs.ppu_address = 0x3fe0;
+      Ppu.store(ppu, 0x2007, 0x34);
+      regs.ppu_address = 0x3f00;
+      let result = Ppu.fetch(ppu, 0x2007);
+      expect(result) |> toEqual(0x34);
+    });
+
     test("fetching from PPUDATA increments the PPUADDR by vram_step", () => {
       regs.ppu_address = 0x2010;
       let _ = Ppu.fetch(ppu, 0x2007);

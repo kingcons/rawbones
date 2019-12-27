@@ -91,8 +91,10 @@ let nt_mirror = (ppu, address) => {
   };
 };
 
-let palette_mirror = addr =>
-  addr > 0x3f0f && addr mod 4 == 0 ? (addr - 16) land 0x1f : addr land 0x1f;
+let palette_mirror = addr => {
+  let mirrored = addr land 0x1f;
+  mirrored > 0x0f && mirrored mod 4 == 0 ? mirrored - 16 : mirrored;
+}
 
 let read_vram = (ppu, address) =>
   if (address < 0x2000) {
@@ -135,7 +137,7 @@ let read_ppu_data = ppu => {
   let buffer = ppu.registers.ppu_data;
   let result = read_vram(ppu, address);
   ppu.registers.ppu_address = (address + vram_step(ppu.registers)) land 0x3fff;
-  if (address > 0x3f00) {
+  if (address >= 0x3f00) {
     ppu.registers.ppu_data = ppu.name_table[nt_mirror(ppu, address)];
     result;
   } else {
