@@ -96,6 +96,13 @@ describe("PPU", () => {
       let big_step = regs.ppu_address;
       expect((small_step, big_step)) |> toEqual((0x2011, 0x2031));
     });
+
+    test("fetching from 0x3fff should cause PPUADDR to wrap to 0", () => {
+      regs.ppu_address = 0x3fff;
+      regs.control = regs.control lxor 4; // vram step = 1
+      let _ = Ppu.fetch(ppu, 0x2007);
+      expect(regs.ppu_address) |> toEqual(0);
+    })
   });
 
   describe("store", () => {
