@@ -123,8 +123,8 @@ let write_vram = (ppu, value) => {
 
 let read_status = ppu => {
   let result = ppu.registers.status;
-  ppu.registers.status = result land 0x7f;
   ppu.registers.write_latch = false;
+  set_vblank(ppu.registers, false);
   result;
 };
 
@@ -172,14 +172,13 @@ let write_scroll = (ppu: t, value) => {
     let coarse_y_bits = (value lsr 3) lsl 5;
     let fine_y_bits = (value land 7) lsl 12;
     regs.buffer = regs.buffer lor coarse_y_bits lor fine_y_bits;
-    regs.write_latch = false;
   } else {
     let coarse_x_bits = value lsr 3;
     let fine_x_bits = value land 7;
     regs.buffer = coarse_x_bits;
     regs.fine_x = fine_x_bits;
-    regs.write_latch = true;
   };
+  regs.write_latch = !regs.write_latch;
 };
 
 let write_address = (ppu: t, value) => {
