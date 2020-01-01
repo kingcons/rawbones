@@ -53,7 +53,7 @@ module ScrollInfo = {
     | (Rom.Horizontal, Horizontal) => index lxor 1
     | (Rom.Horizontal, Vertical) => index lxor 2
     | (Rom.Vertical, Horizontal) => index lxor 2
-    | (Rom.Vertical, Vertical) => index lxor 1
+    | _ => index lxor 1
     };
   };
 
@@ -82,8 +82,15 @@ module ScrollInfo = {
     | (0, 0) => TopLeft
     | (0, 1) => BottomLeft
     | (1, 0) => TopRight
-    | (1, 1) => BottomRight
+    | _ => BottomRight
     };
+
+  let hblank = (scroll_info: t, ppu: Ppu.t) => {
+    scroll_info.coarse_x =
+      ppu.registers.buffer land 0x1f;
+      // May need to also adjust nametable index, but this should be covered by
+      // next_scanline and next_tile
+  };
 };
 
 type frame = array(int);
@@ -164,19 +171,22 @@ module Context = {
 
   let get_high_bits = (context, x, y, nt_index) => {
     let at_offset = Ppu.nt_offset(nt_index) + 0x3c0;
-    let at_byte = Ppu.read_vram(context.ppu, at_offset + (y / 4) lsl 3 + x / 4);
+    let at_byte =
+      Ppu.read_vram(context.ppu, at_offset + (y / 4) lsl 3 + x / 4);
     let quad = ScrollInfo.quad_position(x, y);
     Pattern.Tile.high_bits(at_byte, quad);
-  }
+  };
 
   let get_line_bits = (context, x, y, nt_index, fine_y) => {
     let nt_offset = Ppu.nt_offset(nt_index);
     let nt_byte = Ppu.read_vram(context.ppu, nt_offset + 32 * y + x);
     let bg_offset = Ppu.background_offset(context.ppu);
-    let low_byte = Ppu.read_vram(context.ppu, bg_offset + nt_byte * 16 + fine_y);
-    let high_byte = Ppu.read_vram(context.ppu, bg_offset + nt_byte * 16 + 8 + fine_y);
+    let low_byte =
+      Ppu.read_vram(context.ppu, bg_offset + nt_byte * 16 + fine_y);
+    let high_byte =
+      Ppu.read_vram(context.ppu, bg_offset + nt_byte * 16 + 8 + fine_y);
     Pattern.Tile.line_bits(low_byte, high_byte);
-  }
+  };
 
   let find_background =
       (
@@ -188,7 +198,7 @@ module Context = {
       ) => {
     {
       high_bits: get_high_bits(context, x, y, nt_index),
-      line_bits: get_line_bits(context, x, y, nt_index, fine_y)
+      line_bits: get_line_bits(context, x, y, nt_index, fine_y),
     };
   };
 
@@ -214,9 +224,11 @@ module Context = {
     let row = context.scanline - sprite.y_position;
     let sprite_offset = Ppu.sprite_offset(context.ppu);
     let tile_offset = sprite.tile_index * 16;
-    let sprite_y = Sprite.Tile.flip_vert(sprite.attributes) ? (7 - row) : row; 
-    let low_byte = Ppu.read_vram(context.ppu, sprite_offset + tile_offset + sprite_y);
-    let high_byte = Ppu.read_vram(context.ppu, sprite_offset + tile_offset + 8 + sprite_y);
+    let sprite_y = Sprite.Tile.flip_vert(sprite.attributes) ? 7 - row : row;
+    let low_byte =
+      Ppu.read_vram(context.ppu, sprite_offset + tile_offset + sprite_y);
+    let high_byte =
+      Ppu.read_vram(context.ppu, sprite_offset + tile_offset + 8 + sprite_y);
     let bits = Sprite.Tile.line_bits(low_byte, high_byte);
     let high = Sprite.Tile.high_bits(sprite);
     for (i in start to min(start + 7, 255)) {
@@ -294,7 +306,10 @@ module Context = {
         };
       draw(context, color, i);
     };
-    ScrollInfo.next_tile(context.scroll, context.ppu.pattern_table.mirroring());
+    ScrollInfo.next_tile(
+      context.scroll,
+      context.ppu.pattern_table.mirroring(),
+    );
   };
 
   let render_scanline = context => {
@@ -304,7 +319,11 @@ module Context = {
         render_tile(context);
       };
     };
-    ScrollInfo.next_scanline(context.scroll, context.ppu.pattern_table.mirroring());
+    ScrollInfo.hblank(context.scroll, context.ppu);
+    ScrollInfo.next_scanline(
+      context.scroll,
+      context.ppu.pattern_table.mirroring(),
+    );
   };
 
   let start_vblank = context => {
