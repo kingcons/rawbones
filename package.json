@@ -1,6 +1,6 @@
 {
   "name": "rawbones",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "scripts": {
     "build": "bsb -make-world",
     "clean": "bsb -clean-world",
