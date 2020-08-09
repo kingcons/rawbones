@@ -4,6 +4,13 @@ Change types:
 * Optimization
 * Bugfix
 
+## Changes for 0.3.5 (08/09/20):
+
+* Bugfix: PPUDATA reads now wraparound correctly above 0x3fff.
+* Bugfix: PPUDATA palette reads now buffer the nametable below.
+* Bugfix: Palette data is now mirrored correctly for reads and writes.
+* Bugfix: MMC1 should be properly included in the NPM module.
+
 ## Changes for 0.3.4 (12/26/19):
 
 * Enhancement: Support MMC1.
